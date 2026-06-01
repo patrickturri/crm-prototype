@@ -1,0 +1,62 @@
+# Lean 4 / mathlib config (§6.3, §11) — the HEADLINE real critic.
+#
+# Domain: elementary number theory (divisibility, gcd/coprimality, primes,
+# modular arithmetic). Each conjecture is written as
+#   import Mathlib
+#   theorem crm_candidate : <statement> := <proof_attempt>
+# and compiled with `lake env lean` (prebuilt mathlib oleans). Validity is
+# decided by the Lean KERNEL — never by an LLM (§3, §15). A failed supplied proof
+# triggers ONE automation retry (decide/omega/simp/aesop), recording proof_method
+# so the significance critic can detect automation-closure -> is_trivial (§5.2).
+#
+# NON-FATAL toolchain policy (§6.3): if Lean/mathlib is unavailable in this
+# environment, the critic returns labelled ILLFORMED results (it does NOT crash),
+# the run completes, and the code-critic floor (configs/code.yaml) still stands.
+# Run `bash scripts/setup_lean.sh` first to install the toolchain.
+# NOTE on cost: each candidate compiles `import Mathlib` (~4s/compile). To keep
+# the headline demo under a few minutes we use modest rounds/k/perturbations and
+# a 3-tactic automation battery. The Lean *kernel* still decides every survivor —
+# nothing is mocked (§3, §15). Scale these up for a fuller run if time allows.
+name: lean_nt
+topic: "elementary number theory (divisibility, gcd/coprimality, primes, modular arithmetic)"
+rounds: 2
+k: 4
+seed: 0
+mode: genealogy          # "genealogy" | "control"
+critic: lean             # Lean 4 / mathlib critic (§6.3)
+proof_budget_s: 60.0     # per-candidate `lake env lean` wall-clock timeout
+
+# Lean critic knobs.
+lean_automation_retry: true        # one-shot retry to CLOSE a failed supplied proof
+lean_tactics: [decide, omega, simp, norm_num] # automation battery (feeds is_trivial)
+lean_require_available: false      # NON-FATAL: do not crash if toolchain missing
+# lean_project_dir: .lean/crm_lean   # default; the dir scripts/setup_lean.sh builds
+
+proposer:
+  kind: api_lean         # real LLM (Anthropic) -> deterministic offline fallback
+  model: claude-sonnet-4-6
+  temperature: 0.7
+
+# Significance weights (default 0.3/0.3/0.4) and thresholds (§5.2).
+weights:
+  novelty: 0.3
+  breadth: 0.3
+  hardness: 0.4
+tau: 0.25
+delta: 0.35
+perturbations: 4        # neighbours per candidate for the hardness signal
+
+# Keep the breadth probe small (each held-out target is recompiled in Lean).
+significance:
+  breadth_targets: 4
+
+# Embedding: real MiniLM by default; offline (hash) fallback only if
+# sentence-transformers / the model is unavailable, and is clearly labelled.
+embedder: sentence-transformers/all-MiniLM-L6-v2
+offline_embedder: false
+
+# Novelty corpus: REAL mathlib NT statement signatures (data/corpus.jsonl), so
+# the novelty test means something (§5.3, §6.3).
+corpus_path: data/corpus.jsonl
+
+results_dir: results

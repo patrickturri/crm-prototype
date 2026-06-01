@@ -1,4 +1,9 @@
 divisibility
 gcd and coprimality
-prime numbers
-modular arithmetic
+least common multiple
+prime numbers and primality
+modular arithmetic and congruences
+Euler's totient function
+factorials and binomial coefficients
+parity (even and odd numbers)
+divisor counting and factorization

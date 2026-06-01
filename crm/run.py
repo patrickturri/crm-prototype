@@ -41,7 +41,20 @@ def _build_critic(name: str, cfg: dict[str, Any] | None = None):
             n_adversarial=int(cfg.get("n_adversarial", 12)),
             seed=int(cfg.get("seed", 0)),
         )
-    # lean lands in a later phase.
+    if name == "lean":
+        from crm.critics.lean import LeanCritic
+
+        # NON-FATAL (§6.3): if the Lean toolchain / mathlib is unavailable, the
+        # critic is constructed in a labelled-unavailable state (it returns
+        # ILLFORMED with a clear reason rather than crashing the run), so the
+        # build never blocks on Lean and the code-critic floor still stands.
+        return LeanCritic(
+            project_dir=cfg.get("lean_project_dir"),
+            timeout_s=float(cfg.get("proof_budget_s", 60.0)),
+            automation_retry=bool(cfg.get("lean_automation_retry", True)),
+            require_available=bool(cfg.get("lean_require_available", False)),
+            tactics=cfg.get("lean_tactics"),
+        )
     raise ValueError(f"unknown / not-yet-implemented critic: {name!r}")
 
 
@@ -82,6 +95,15 @@ def _build_proposer(spec: dict[str, Any]):
         from crm.proposers_code import APICodeProposer
 
         return APICodeProposer(**{k: v for k, v in spec.items() if k != "kind"})
+    if kind == "offline_lean":
+        from crm.proposers_lean import OfflineLeanProposer
+
+        return OfflineLeanProposer()
+    if kind in ("api_lean", "lean"):
+        # Real LLM Lean proposer with deterministic offline fallback (§6.3, §7).
+        from crm.proposers_lean import APILeanProposer
+
+        return APILeanProposer(**{k: v for k, v in spec.items() if k != "kind"})
     raise ValueError(f"unknown proposer kind: {kind!r}")
 
 
