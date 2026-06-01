@@ -40,7 +40,7 @@ _POOL: list[dict[str, str]] = [
     },
     {
         "statement": "forall (n : Nat), Nat.gcd n (n + 2) = 1",
-        "proof_attempt": "by sorry",
+        "proof_attempt": "by decide",
         "nl_gloss": "n and n+2 are coprime (FALSE at n=2)",
     },
     {

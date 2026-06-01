@@ -103,6 +103,27 @@ _REASON_LABEL = {
 }
 
 
+def _failure_reason(e: "Entry") -> str:
+    """Render the WHY of a failed entry (§5.1) — never just pass/fail.
+
+    A conjecture can "fail" two ways: the critic refuted it (FALSE / ILLFORMED /
+    etc.), OR it was valid-but-suppressed by the significance critic as trivial.
+    Both carry a real reason: a counterexample, or the triviality with its
+    hardness number.
+    """
+    stmt = e.statement
+    # Valid-but-trivial suppression: surface the hardness number.
+    if e.crit.valid and e.significance is not None and e.significance.is_trivial:
+        h = e.significance.hardness
+        return (
+            f'"{stmt}"  — REJECTED: trivial '
+            f"(automation-closeable or hardness {h:.2f})."
+        )
+    label = _REASON_LABEL.get(e.crit.reason_class, e.crit.reason_class)
+    detail = f" — {e.crit.detail}" if e.crit.detail else ""
+    return f'"{stmt}"  — {label}{detail}.'
+
+
 def build_conditioning_context(
     ledger: Ledger,
     topic: str,
@@ -136,9 +157,7 @@ def build_conditioning_context(
                 "Past attempts and WHY they failed — do not repeat these failure modes:"
             )
             for e in failed[-12:]:
-                label = _REASON_LABEL.get(e.crit.reason_class, e.crit.reason_class)
-                detail = f" ({e.crit.detail})" if e.crit.detail else ""
-                lines.append(f'- "{e.statement}"  — {label}{detail}.')
+                lines.append(f"- {_failure_reason(e)}")
             lines.append("")
 
         survivors = ledger.survivors()
@@ -147,7 +166,11 @@ def build_conditioning_context(
                 "Surviving, high-content results so far — generalise or build on these:"
             )
             for e in survivors[-12:]:
-                sc = f" (content score {e.significance.score:.2f})" if e.significance else ""
+                sc = (
+                    f" (content score {e.significance.score:.2f})"
+                    if e.significance
+                    else ""
+                )
                 lines.append(f'- "{e.statement}"{sc}')
             lines.append("")
     else:

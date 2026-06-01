@@ -28,8 +28,32 @@ def _build_critic(name: str):
         from crm.critics.mock import MockCritic
 
         return MockCritic()
+    if name == "arith":
+        from crm.critics.arith import ArithCritic
+
+        return ArithCritic()
     # code_exec / lean land in later phases.
     raise ValueError(f"unknown / not-yet-implemented critic: {name!r}")
+
+
+def _load_jsonl_statements(path: str | Path) -> list[str]:
+    import json
+
+    p = Path(path)
+    if not p.exists():
+        return []
+    out: list[str] = []
+    for line in p.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            obj = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(obj, dict) and "statement" in obj:
+            out.append(obj["statement"])
+    return out
 
 
 def _build_proposer(spec: dict[str, Any]):
@@ -60,6 +84,18 @@ def run_from_config(cfg: dict[str, Any], run_name: str | None = None) -> dict:
 
     sig_cfg = cfg.get("significance", {})
     weights = cfg.get("weights", {})
+
+    corpus_path = cfg.get("corpus_path", "data/corpus.jsonl")
+    corpus_statements = _load_jsonl_statements(corpus_path)
+    breadth_path = cfg.get("breadth_targets_path", corpus_path)
+    breadth_statements = _load_jsonl_statements(breadth_path)
+
+    # For fast offline runs (smoke), force the deterministic hash embedder so we
+    # never block on a model download; real runs set embedder explicitly.
+    embedder = cfg.get("embedder")
+    if cfg.get("offline_embedder", False):
+        embedder = "hash"
+
     significance = SignificanceCritic(
         w_novelty=weights.get("novelty", 0.3),
         w_breadth=weights.get("breadth", 0.3),
@@ -67,7 +103,10 @@ def run_from_config(cfg: dict[str, Any], run_name: str | None = None) -> dict:
         tau=cfg.get("tau", 0.25),
         perturbations=cfg.get("perturbations", 8),
         breadth_targets=sig_cfg.get("breadth_targets", 8),
-        embedder=cfg.get("embedder"),
+        embedder=embedder,
+        corpus_statements=corpus_statements,
+        breadth_target_statements=breadth_statements,
+        seed=int(cfg.get("seed", 0)),
     )
 
     accountant = Accountant(
@@ -91,7 +130,7 @@ def run_from_config(cfg: dict[str, Any], run_name: str | None = None) -> dict:
         ledger=Ledger(),
         accountant=accountant,
         config=loop_config,
-        corpus=[],
+        corpus=corpus_statements,
     )
     metrics = loop.run(out_dir)
     print(f"[crm] run complete: {out_dir}")
@@ -101,6 +140,28 @@ def run_from_config(cfg: dict[str, Any], run_name: str | None = None) -> dict:
         f"[crm]   conjectures={metrics['total_conjectures']} "
         f"surviving={metrics['surviving']} certified_novel={metrics['certified_novel']}"
     )
+
+    # Show the trivial conjectures the significance critic flagged + suppressed,
+    # and the genealogy conditioning string that would drive the next round
+    # (the §5 mechanisms made visible at the checkpoint, never fabricated).
+    from crm.genealogy import build_conditioning_context
+
+    trivial = [
+        e for e in loop.ledger.entries
+        if e.crit.valid and e.significance is not None and e.significance.is_trivial
+    ]
+    print(f"[crm]   trivial-suppressed ({len(trivial)}):")
+    for e in trivial:
+        h = e.significance.hardness
+        print(
+            f"[crm]     - {e.statement}  (hardness {h:.2f}, score 0, is_trivial=True)"
+        )
+
+    ctx = build_conditioning_context(
+        loop.ledger, loop_config.topic, loop_config.k, mode=loop_config.mode
+    )
+    print(f"[crm]   genealogy conditioning string (mode={loop_config.mode}):")
+    print("    " + "\n    ".join(ctx.splitlines()))
     return metrics
 
 

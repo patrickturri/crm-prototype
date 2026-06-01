@@ -96,7 +96,7 @@ class CRMLoop:
                     entry.significance = sig
                     entry.surviving = not sig.is_trivial
                     entry.certified_novel = entry.surviving and certify_novel(
-                        c.statement, sig, self.corpus
+                        c.statement, sig, self.corpus, critic=self.critic
                     )
                 self.ledger.add(entry)
 

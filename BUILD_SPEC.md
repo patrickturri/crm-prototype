@@ -338,3 +338,30 @@ Leave clean seams for, but **do not build**: weight-update RL (GRPO/PPO via `veR
 - DeepSeek-AI, *DeepSeek-R1*, *Nature* 645:633–638, 2025 (RLVR).
 - Deutsch, *The Beginning of Infinity*, 2011 (good explanations are *hard to vary* — the basis for §5.2).
 - mathlib + `lake exe cache get` (prebuilt oleans — the setup-time trick in §6.3).
+
+---
+
+## 18. Phase 6 — Shareability (same conventions: commit on green, never fabricate, [latitude] on plumbing, real data only)
+
+**Goal:** turn the local artifact into clickable, reviewer-ready links with zero manual steps beyond `git push`. Runs after Phase 5 (depends on the real plots, `metrics.json`, the best run's `ledger.jsonl`, `REPORT.md`, `SURVIVORS.md`). `results/` stays gitignored — Phase 6 copies *curated, sanitized* artifacts into a tracked `docs/`. Build in this order, then update the `v0.1-pitch` tag.
+
+**6.1 — Tracked docs assets.** Create a tracked `docs/` dir and copy into it: the two final ablation plots (`docs/assets/ablation_genealogy.png`, `docs/assets/ablation_significance.png`), a curated `docs/SURVIVORS.md` (top ~5 certified-novel results with proofs, significance breakdown, and failed genealogy siblings), and the rendered `docs/REPORT.md`. Use **relative** image paths so they embed on GitHub. (Never hand-author survivors — copy from the real run.)
+
+**6.2 — GitHub-ready README.** Rewrite `README.md` so the repo URL alone tells the story: one-line what-it-is; the thesis in 3 sentences; the two embedded plots with one-sentence readings; one-command repro (`make demo`); a short "How this differs from RLVR / AlphaProof / Absolute Zero" note (reasoned genealogy + hard-to-vary content scoring, not pass/fail + validity); the headline KPI pulled from `metrics.json` (`certified_novel_per_kilo_token`, `_per_critic_hour`); links to `docs/SURVIVORS.md` and the replay viewer; and an honest-limits section (frozen proposer, operational—not formal—novelty, small scale). Verify the embedded plots actually render by checking relative paths resolve to real files.
+
+**6.3 — Replay-from-logs viewer** (the reliable shareable demo — do NOT make it run anything live). A single self-contained `docs/replay/index.html` (vanilla JS, no build step, works offline by double-clicking the file) loads a committed, **sanitized** `docs/replay/run.jsonl` (a curated copy of a real `ledger.jsonl` from the best run — strip any keys/paths) and renders the loop as a scrubbable timeline:
+- round-by-round; each conjecture a card coloured by `reason_class` (PROVED / FALSE / UNPROVEN_BUDGET / TRIVIAL / DUPLICATE);
+- show statement, `nl_gloss`, the refutation detail (counterexample / error / "trivial: omega-closed"), and significance as three mini-bars (novelty / breadth / hardness) with a "certified-novel" badge where true;
+- under each surviving result, list its failed siblings (via `parent_ids` / same round) so the genealogy story is visible;
+- a header with the run's headline KPIs; filter toggles (all / survivors only / certified-novel only).
+Clean and legible (generous whitespace, one accent colour, monospace for Lean). Reads ONLY the committed JSONL — no API, no Lean, no network. **Acceptance:** opening it offline shows a working replay of the real run.
+
+**6.4 — GitHub Pages prep.** Structure `docs/` so Pages can serve it (Pages → deploy from `main` `/docs`). The agent can't enable Pages; add to the README the exact setting to flip and the resulting URL pattern (`https://<user>.github.io/<repo>/replay/`).
+
+**6.5 — Recording helper.** Add a `make record` target that runs `make demo` under `asciinema rec docs/demo.cast` if `asciinema` is installed (else print a note to use a screen recorder / Loom). Embed the cast in the README or a docs page if produced. **[latitude]**.
+
+**6.6 — `make publish` + secrets hygiene.** Add `make publish` that regenerates plots, refreshes `docs/` assets, runs a grep check for leaked secrets/keys/`.env` in tracked files (**fail loudly** if any), then prints (does NOT execute) the manual steps: `git remote add … && git push`, and the Pages toggle. Ensure `.gitignore` covers `results/`, `.env`, caches, and model weights.
+
+**6.7 — IP mode.** `scripts/prep_public.sh --mode {results-only|full}`. `results-only` (default) tracks README, `docs/` (report, survivors, replay, plots), and the loop/critic interfaces, but keeps the moat — `crm/significance.py` and `crm/genealogy.py` — in a gitignored `PRIVATE/` path (the human shares these with reviewers separately). `full` tracks everything. Document the choice in the README. Protects the hard-to-vary critic during the competition while still giving a public, rendered, interactive link.
+
+**Definition of done (Phase 6):** repo URL renders README with embedded plots; `docs/replay/index.html` replays a real run offline; `make publish` passes the secret-scan and prints push + Pages steps; `--mode results-only` excludes the significance/genealogy source; tag `v0.1-pitch` updated. Commit on green.

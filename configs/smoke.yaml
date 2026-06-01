@@ -7,8 +7,9 @@ rounds: 2
 k: 4
 seed: 0
 mode: genealogy          # "genealogy" | "control"
-critic: mock
+critic: arith            # real, offline, reality-grounded NT critic (decides numerically)
 proof_budget_s: 5.0
+offline_embedder: true   # force deterministic hash embedder; no model download in smoke
 
 proposer:
   kind: stub             # deterministic offline proposer
