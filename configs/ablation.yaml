@@ -1,0 +1,43 @@
+# Ablation config (§9). Shared base for BOTH ablations. Treatment/control (or
+# critic on/off) differ in EXACTLY one variable; everything else is read from
+# here so the comparison is apples-to-apples (§3.5, §9).
+#
+# Critic is ALWAYS the real sandboxed CodeExecCritic — never mocked in any
+# reported number (§3, §15). The proposer is the real Anthropic LLM via the
+# gitignored .env when available (it READS the conditioning context, so the
+# genealogy mechanism genuinely bites); it degrades to the deterministic
+# offline candidate generator if no/invalid key. Either way the survive/die
+# decision is real execution.
+#
+# Kept small so 2 modes x 5 seeds stays well under the cost/time budget (§10).
+name: ablation
+topic: "elementary number theory and combinatorics (Python-verifiable)"
+rounds: 3
+k: 6
+seed: 0
+critic: code_exec
+proof_budget_s: 5.0
+n_adversarial: 12
+
+proposer:
+  kind: api_code         # real LLM (Anthropic) -> offline fallback if no key
+  model: claude-sonnet-4-6
+  temperature: 0.7
+
+weights:
+  novelty: 0.3
+  breadth: 0.3
+  hardness: 0.4
+tau: 0.25
+delta: 0.35
+perturbations: 8
+
+# Deterministic hash embedder for the ablation so novelty is reproducible and
+# we never block on a model download mid-sweep. Real MiniLM is used in `make
+# demo`; for an apples-to-apples ablation the embedder is held FIXED across
+# arms, so the choice does not confound the result.
+embedder: hash
+offline_embedder: true
+
+corpus_path: data/code_corpus.jsonl
+results_dir: results

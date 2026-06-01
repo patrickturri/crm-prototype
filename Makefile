@@ -19,10 +19,17 @@ CONFIG ?= configs/code.yaml
 demo:
 	$(PYTHON) -m crm.run --config $(CONFIG)
 
-# Both ablations + plots -- filled in by Phase 3.
+# Phase 3 checkpoint (§9): both ablations on the REAL sandboxed CodeExecCritic
+# (never mocked, §3/§15) over >=3 seeds, then render both mean±std plots into
+# results/plots/ and write REPORT.md with a 1-paragraph reading of each.
+# Per-seed CSVs land in results/. Override seeds with `make ablation SEEDS=3`
+# and the config with `make ablation ABLATION_CONFIG=...`.
+SEEDS ?= 5
+ABLATION_CONFIG ?= configs/ablation.yaml
 ablation:
-	@echo "make ablation: implemented in Phase 3." >&2
-	@exit 1
+	$(PYTHON) -m experiments.ablation_genealogy --config $(ABLATION_CONFIG) --seeds $(SEEDS)
+	$(PYTHON) -m experiments.ablation_significance --config $(ABLATION_CONFIG) --seeds $(SEEDS)
+	$(PYTHON) -m experiments.make_report
 
 clean:
 	rm -rf results/*/ results/metrics.json
