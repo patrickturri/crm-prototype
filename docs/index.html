@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Critical-Rationalist Machine — prototype</title>
+<style>
+  :root{
+    --accent:#1f6feb;
+    --bg:#0d1117; --panel:#161b22; --panel2:#1c2230;
+    --ink:#e6edf3; --muted:#8b949e; --line:#30363d;
+    --proved:#2ea043; --false:#f85149; --trivial:#8957e5;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased}
+  .wrap{max-width:920px;margin:0 auto;padding:72px 24px 96px}
+  .eyebrow{color:var(--accent);font-weight:600;letter-spacing:.08em;
+    text-transform:uppercase;font-size:13px;margin:0 0 14px}
+  h1{font-size:40px;line-height:1.15;margin:0 0 18px;font-weight:700}
+  .lede{font-size:19px;color:var(--ink);max-width:42em;margin:0 0 8px}
+  .thesis{color:var(--muted);max-width:44em;margin:18px 0 0}
+  .row{display:flex;flex-wrap:wrap;gap:14px;margin:36px 0 8px}
+  a.btn{display:inline-flex;align-items:center;gap:8px;text-decoration:none;
+    padding:12px 18px;border-radius:10px;font-weight:600;border:1px solid var(--line)}
+  a.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+  a.ghost{background:var(--panel);color:var(--ink)}
+  a.ghost:hover{border-color:var(--accent)}
+  .kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:44px 0 8px}
+  .kpi{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px}
+  .kpi .n{font-size:30px;font-weight:700;font-family:var(--mono)}
+  .kpi .l{color:var(--muted);font-size:13px;margin-top:6px}
+  h2{font-size:14px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);
+    margin:64px 0 18px;border-bottom:1px solid var(--line);padding-bottom:10px}
+  figure{margin:0 0 30px}
+  figure img{width:100%;border:1px solid var(--line);border-radius:12px;background:#fff}
+  figcaption{color:var(--muted);font-size:14px;margin-top:10px}
+  .pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;
+    font-family:var(--mono);border:1px solid var(--line)}
+  .ok{color:var(--proved);border-color:var(--proved)}
+  .warn{color:var(--trivial);border-color:var(--trivial)}
+  footer{color:var(--muted);font-size:13px;margin-top:72px;border-top:1px solid var(--line);
+    padding-top:22px}
+  a{color:var(--accent)}
+  code{font-family:var(--mono);background:var(--panel2);padding:1px 6px;border-radius:6px;font-size:14px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="eyebrow">Prototype · v0.1-pitch</p>
+  <h1>Critical-Rationalist Machine</h1>
+  <p class="lede">A minimal but <strong>real, end-to-end</strong> machine that <em>creates</em>
+    certified-novel knowledge by <strong>bold conjecture → severe automated criticism →
+    retention of survivors and the reasoned genealogy of failures</strong> — not by
+    predicting the human-text distribution.</p>
+  <p class="thesis">A frozen LLM is demoted from a terminal objective to a <em>proposal
+    distribution</em>; the primary signal becomes survival under a real Refutation Engine.
+    What sets it apart from RLVR / AlphaProof / Absolute Zero: it conditions the proposer on a
+    structured genealogy of <em>why</em> conjectures failed, and scores them by
+    <em>hard-to-vary-ness</em> — not mere pass/fail or validity.</p>
+
+  <div class="row">
+    <a class="btn primary" href="replay/">▶ Open the interactive replay</a>
+    <a class="btn ghost" href="https://github.com/patrickturri/crm-prototype/blob/main/docs/SURVIVORS.md">Certified-novel survivors</a>
+    <a class="btn ghost" href="https://github.com/patrickturri/crm-prototype/blob/main/docs/REPORT.md">Full report</a>
+    <a class="btn ghost" href="https://github.com/patrickturri/crm-prototype">Source ↗</a>
+  </div>
+
+  <div class="kpis">
+    <div class="kpi"><div class="n">6</div><div class="l">certified-novel survivors (of 18 conjectures, 3 rounds — real critic)</div></div>
+    <div class="kpi"><div class="n">0.628</div><div class="l">certified-novel&nbsp;/&nbsp;kilo-token</div></div>
+    <div class="kpi"><div class="n">26,180</div><div class="l">certified-novel&nbsp;/&nbsp;critic-hour</div></div>
+  </div>
+
+  <h2>The contribution is the ablations</h2>
+  <figure>
+    <img src="assets/ablation_significance.png" alt="Significance ablation">
+    <figcaption><span class="pill ok">clear win</span> &nbsp;Turning the hard-to-vary
+      significance critic <strong>ON</strong> drops the trivial/vacuous-survivor rate from
+      <strong>0.34 → 0.00</strong> — it catches the “it compiled / it passed” reward-hack that
+      validity-only optimizers fall for.</figcaption>
+  </figure>
+  <figure>
+    <img src="assets/ablation_genealogy.png" alt="Genealogy ablation">
+    <figcaption><span class="pill warn">reported honestly</span> &nbsp;At this tiny budget the
+      genealogy treatment does <em>not</em> lead on the headline count (6.0±2.2 vs 7.0±0.8) — the
+      mechanism and the per-compute benchmark are the claim; a larger budget is needed to test
+      whether it compounds.</figcaption>
+  </figure>
+
+  <h2>What you’re looking at</h2>
+  <p>The <a href="replay/">replay viewer</a> reads a committed, sanitized copy of a
+    <strong>real</strong> run ledger and renders the loop round-by-round: each conjecture as a
+    card coloured by its refutation class, with significance mini-bars (novelty · breadth ·
+    hardness), a certified-novel badge, and — under each survivor — the failed siblings the
+    genealogy explains. No API, no network, no Lean: it’s a faithful replay of what actually ran.</p>
+  <p><strong>Honest limits:</strong> frozen proposer (in-context conditioning only);
+    <em>operational</em>, not formal, novelty; small scale (~18 conjectures). The headline rests on
+    the real sandboxed code-exec critic; the Lean 4 / mathlib critic is wired and compiles but
+    produced 0 survivors at the demo budget. Reproduce locally with <code>make demo</code>.</p>
+
+  <footer>
+    Critical-Rationalist Machine prototype · built for grant + pitch ·
+    <a href="https://github.com/patrickturri/crm-prototype">patrickturri/crm-prototype</a>
+  </footer>
+</div>
+</body>
+</html>
