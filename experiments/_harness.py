@@ -31,6 +31,7 @@ from crm.genealogy import Entry, Ledger, build_conditioning_context
 from crm.novelty import certify_novel
 from crm.run import _build_critic, _build_proposer, _load_jsonl_statements
 from crm.significance import SignificanceCritic
+from experiments._indep_oracle import independent_trivial_rate
 
 
 @dataclass
@@ -79,6 +80,7 @@ def _build_components(cfg: dict[str, Any]):
         corpus_statements=corpus,
         breadth_target_statements=breadth,
         seed=int(cfg.get("seed", 0)),
+        perturb_strategy=cfg.get("perturb_strategy", "literal"),
     )
     return proposer, critic, significance, corpus
 
@@ -120,6 +122,10 @@ def run_arm(
     # oracle (which needs the executable payload) can run on survivors later.
     pairs: list[tuple[Entry, Any]] = []
 
+    # Running set of statements THIS arm has already certified-novel, so a later
+    # near-duplicate of an earlier survivor is blocked (review finding #7).
+    accepted: list[str] = []
+
     for r in range(rounds):
         ctx = build_conditioning_context(ledger, topic, k, mode=mode)
         batch = proposer.propose(ctx, k=k, seed=seed + r)
@@ -140,15 +146,27 @@ def run_arm(
                     # production behaviour: trivial -> suppressed, score 0.
                     entry.surviving = not s.is_trivial
                     entry.certified_novel = entry.surviving and certify_novel(
-                        c.statement, s, corpus, delta=delta, critic=critic
+                        c.statement,
+                        s,
+                        corpus,
+                        delta=delta,
+                        critic=critic,
+                        accepted_survivors=accepted,
                     )
                 else:
                     # "off" arm (§9.2): ANY valid statement counts; no triviality
                     # suppression and no content gate on certification.
                     entry.surviving = True
                     entry.certified_novel = certify_novel(
-                        c.statement, s, corpus, delta=delta, critic=critic
+                        c.statement,
+                        s,
+                        corpus,
+                        delta=delta,
+                        critic=critic,
+                        accepted_survivors=accepted,
                     )
+                if entry.certified_novel:
+                    accepted.append(c.statement)
             ledger.add(entry)
         acct.snapshot(round=r)
         cum_certified.append(len(ledger.certified()))
@@ -196,9 +214,10 @@ def run_arm(
     trivial_rate = n_trivial / len(valid) if valid else 0.0
 
     # INDEPENDENT triviality check over the SURVIVORS of THIS arm (§9.2 metric):
-    # a fresh automation oracle (the critic's degenerate-impl probe) decides
-    # triviality, independent of whatever the loop used to gate survival. We use
-    # the live Conjecture payloads captured during the run.
+    # a SEPARATELY-IMPLEMENTED oracle (experiments._indep_oracle) decides
+    # triviality, sharing NO code with the significance gate's
+    # `automation_closeable_conjecture` (review finding #5). We use the live
+    # Conjecture payloads captured during the run.
     surviving_pairs = [(e, c) for (e, c) in pairs if e.surviving]
     indep_trivial = _independent_trivial_rate(surviving_pairs, critic)
 
@@ -217,31 +236,25 @@ def run_arm(
 
 
 def _independent_trivial_rate(surviving_pairs: list[tuple[Entry, Any]], critic) -> float:
-    """Fraction of survivors an INDEPENDENT automation oracle calls trivial.
+    """Fraction of survivors a GENUINELY-INDEPENDENT oracle calls trivial (§9.2).
 
-    The oracle is the critic's `automation_closeable_conjecture` — a real
-    execution probe that replaces the impl with degenerate stand-ins (f=0/1/n)
-    and checks whether the proposer's property is still satisfied. This is
-    independent of the significance critic's own gating (it does not look at the
-    novelty/breadth/hardness *weights*), so it is a fair, automation-only check
-    of whether a "survivor" is vacuous (§9.2). When the property is missing we
-    fall back to the recorded hardness<0.25 signal.
+    Review finding #5: the previous implementation called
+    `critic.automation_closeable_conjecture` — the SAME degenerate-impl probe the
+    significance critic uses to compute `is_trivial` — so the significance
+    ablation was measuring the gate with itself (near-tautological).
+
+    The verdict now comes from `experiments._indep_oracle`, a separately
+    implemented oracle that shares NO code with the gate: it uses a different
+    degenerate battery ({n-1, n+1, n*n, seeded-const} vs the gate's {0, 1, n,
+    True}), a DISJOINT (upper-half) sampling subdomain, and a large seed offset,
+    so its sample stream cannot collide with the critic's. It still decides by
+    REAL sandbox execution (no LLM-as-judge, §3, §15). A documented residual
+    fallback to the recorded hardness signal applies ONLY when a survivor has no
+    `property` for the oracle to interrogate (see `_indep_oracle`).
     """
-    if not surviving_pairs:
-        return 0.0
-    oracle = getattr(critic, "automation_closeable_conjecture", None)
-    n_triv = 0
-    for e, c in surviving_pairs:
-        is_triv = False
-        if callable(oracle) and c is not None:
-            try:
-                is_triv = bool(oracle(c))
-            except Exception:
-                is_triv = False
-        if not is_triv and e.significance is not None:
-            # secondary independent signal: a near-zero-hardness statement is
-            # vacuous regardless of the gating used.
-            is_triv = e.significance.hardness < 0.25
-        if is_triv:
-            n_triv += 1
-    return n_triv / len(surviving_pairs)
+    return independent_trivial_rate(
+        surviving_pairs,
+        timeout_s=getattr(critic, "timeout_s", 5.0),
+        n_adversarial=max(24, 2 * getattr(critic, "n_adversarial", 12)),
+        seed=getattr(critic, "seed", 0),
+    )

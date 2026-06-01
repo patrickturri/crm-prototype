@@ -1,18 +1,33 @@
 # Critical-Rationalist Machine (CRM) — prototype
 
-A minimal but **real, end-to-end** prototype of a machine that *creates*
-certified-novel knowledge by **bold conjecture → severe automated criticism →
-retention of survivors and of the reasoned genealogy of failures**, rather than
-by predicting the human-text distribution.
+A minimal but **real, end-to-end** prototype of a machine that searches for
+**operationally-novel** small claims by **bold conjecture → severe automated
+criticism → retention of survivors and of the reasoned genealogy of failures**,
+rather than by predicting the human-text distribution.
+
+> **What this prototype does and does NOT show (read first).** It demonstrates
+> *operational* novelty — claims that are not corpus restatements, are not
+> closeable by a degenerate-impl probe, and sit at embedding-distance >= 0.35
+> from a static corpus — verified by **fuzz-testing on bounded integers, not by
+> proof**. On the default number-theory domain the survivors are **classical
+> textbook identities** (Mobius inversion = phi, sum phi(d) = n, sum floor(n/k) =
+> sum d(n)): the system **rediscovers** them under criticism; it does not certify
+> novel knowledge "against reality" and does not discover new mathematics. The
+> **Lean formal-proof track produced 0 certified-novel survivors** at the demo
+> budget — testing is not proving, and that gap is the honest centre of this
+> report, not a footnote. A full, number-by-number account of the review-pass
+> experiments is in [`docs/FINDINGS.md`](docs/FINDINGS.md).
 
 ## Thesis (3 sentences)
 
-Today's LLMs interpolate human knowledge but cannot **certify new knowledge
-against reality** — a limitation of their fit-to-text *objective*, not of neural
-nets. We demote a **frozen** model from a terminal objective to a **proposal
-distribution** ("imagination") and make the primary signal **survival under
-severe automated criticism** (a Refutation Engine; AlphaZero generalised to an
-open domain). The two things that make this **not** RLVR / AlphaProof / Absolute
+Today's LLMs interpolate human knowledge; the open question is whether a
+fit-to-text *objective* can be made to **certify knowledge against reality**
+rather than against its own training distribution. We demote a **frozen** model
+from a terminal objective to a **proposal distribution** ("imagination") and make
+the primary signal **survival under severe automated criticism** (a Refutation
+Engine; AlphaZero generalised to an open domain). In this prototype "against
+reality" is operationalised as **execution-based fuzz-testing on a bounded
+integer domain** — a proxy, not a proof, and not yet new mathematics. The two things that make this **not** RLVR / AlphaProof / Absolute
 Zero: we condition the proposer on a **structured genealogy of *why* conjectures
 failed** (those systems keep only pass/fail), and we score conjectures by
 **explanatory content / hard-to-vary-ness** (those systems optimise mere
@@ -29,22 +44,27 @@ topic, k, rounds, critic, budgets, seed list — differing in exactly one variab
   *why* past conjectures died and which survivors to build on) vs control
   (`mode=control`, prior statements listed for dedup only, no reasons).
   ![Genealogy ablation](docs/assets/ablation_genealogy.png)
-  *Reading: at this tiny budget the treatment trails the control on the headline
-  certified-novel count (6.0±2.2 vs 7.0±0.8) — reported honestly; the mechanism,
-  not the count, is the claim.*
-  Over 3 seeds, treatment reached 6.00±2.16 cumulative certified-novel survivors
-  vs 7.00±0.82 for control. **Reported honestly:** at this tiny budget the
-  treatment does *not* lead on the headline count, but it pushes the proposer
-  toward harder, less-trivial conjectures (lower trivial rate) — see REPORT.md
-  for the full reading. The mechanism and the per-compute benchmark are the
-  claim; a larger budget is needed to test whether that compounds.
+  *Reading (honest, scaled): at **n=8 seeds** with the real API proposer the
+  treatment does **not** beat control — control is higher (4.88±1.96 vs
+  6.88±2.57), the gap is not significant (Welch p=0.126, MWU p=0.134), and the
+  trivial rate is a near-tie (treatment 0.271 vs control 0.258 — i.e. treatment
+  is **not** lower).* Scaling from the original n=3 run did **not** rescue H2 on
+  this recall-heavy domain; per the review we **demote the claim**. The one place
+  the sign flips positive is a freshly-defined sequence the model cannot recall
+  (genealogy +1.33 vs control), but that is also underpowered at n=3 — see
+  [`docs/FINDINGS.md`](docs/FINDINGS.md) and
+  [`docs/findings/genealogy_scale.md`](docs/findings/genealogy_scale.md),
+  [`docs/findings/hard_domain.md`](docs/findings/hard_domain.md).
 
 - **Significance ablation (reward-hack guard).** Trivial/vacuous "survivors" rate,
-  significance critic ON vs OFF, judged by an *independent* automation probe.
+  significance critic ON vs OFF, judged by a **genuinely independent** triviality
+  oracle that shares no code with the gate (review finding #5).
   ![Significance ablation](docs/assets/ablation_significance.png)
-  *Reading: turning the critic ON drops the trivial-survivor rate from 0.34±0.29
-  to 0.00±0.00 over 3 seeds — the hard-to-vary guard catches the reward-hack that
-  "it compiled / it passed" optimisers fall for.*
+  *Reading: with the corrected non-tautological oracle (offline floor, 5 seeds)
+  the guard ON drops the independently-measured trivial-survivor rate from
+  0.27±0.08 to 0.15±0.07 — a real but **smaller and noisier** reduction than the
+  old self-measuring probe's 0.34→0.00 (now retired). Even ON, ~15% of survivors
+  are still flagged guess-closeable.*
 
 ## Headline KPI (the "certified-novelty-per-compute" benchmark)
 
@@ -52,20 +72,44 @@ From the **real** sandboxed code-exec critic demo (`metrics.json`):
 
 | metric | value |
 | --- | --- |
-| certified-novel survivors | **7** (seed 0; of 18 conjectures, 3 rounds — 3-seed mean **6.0±2.2**, see REPORT.md) |
-| `certified_novel_per_kilo_token` | **0.756** |
-| critic compute | **0.58s** total to certify 7 (~**32 ms**/conjecture) |
+| certified-novel survivors | **7** raw (seed 0; of 18 conjectures, 3 rounds) — but **only 4 distinct** after intra-run dedup (finding #7) |
+| `certified_novel_per_kilo_token` | **0.756** (on the raw count of 7) |
+| critic compute | **0.58s** total (~**32 ms**/conjecture) |
 
-We report critic cost as the measured seconds-per-survivor rather than an
-hourly rate: annualizing a 0.58s sample to a "per critic-hour" figure (~43k)
-is a ~6000× extrapolation, so we quote the measurement instead of the
-extrapolation. `per_kilo_token` is the headline per-compute KPI.
+**Caveats on this headline (do not over-read).** (1) The 7 raw survivors collapse
+to **4** clusters under the run's own embedder at delta=0.35 — 3 are intra-run
+near-duplicates ([`docs/findings/dedup_collapse.md`](docs/findings/dedup_collapse.md)).
+(2) A naive **best-of-N + dedup baseline keeps ~1.7x more** certified items per
+kilo-token than the full pipeline; the full system trades throughput for a
+modest, noisy quality gain, not a per-token win
+([`docs/findings/baseline.md`](docs/findings/baseline.md)).
+(3) We report critic cost as measured seconds-per-survivor, **never** an hourly
+rate: annualizing a 0.58s sample to a "per critic-hour" figure (~43k) is a
+~6000× extrapolation. Any `certified_novel_per_critic_hour` key that appears in a
+regenerated `results/*/metrics.json` is a stray artifact of an older run, is
+**not** emitted by the current accounting code, and is **disavowed** — the
+tracked `metrics.json` correctly omits it.
 
 The top survivors — each with its verifiable proof/tests, significance breakdown,
 and the **failed genealogy siblings that explain why they died** — are in
 [`docs/SURVIVORS.md`](docs/SURVIVORS.md). None is hand-authored; all came from the
 loop. The full run is also browsable in the offline
 **[replay viewer](docs/replay/index.html)** (see *Shareable links* below).
+
+## Findings (updated review pass)
+
+Six follow-up experiments were run to stress-test the claims above. **Every
+number is reproduced from a committed result file; null/unfavorable results are
+reported as such.** Full account: [`docs/FINDINGS.md`](docs/FINDINGS.md).
+
+| # | finding | headline (real numbers) | doc |
+| --- | --- | --- | --- |
+| 7 | **Intra-run dedup** | 7 certified survivors collapse to **4** distinct clusters (3 are near-dups) at delta=0.35; gate now blocks dups at admission | [dedup_collapse](docs/findings/dedup_collapse.md) |
+| 6 | **Hardness perturbation** | literal +-1 rates the vacuous constant-zero at hardness **1.000**; rich strategy gives **0.778** (right direction) but separation is weak (gap 0.091 < 0.10) | [hardness_distribution](docs/findings/hardness_distribution.md) |
+| 3 | **Genealogy at scale (H2)** | n=8 API: genealogy **4.88±1.96** vs control **6.88±2.57**, **−2.00**, not significant (p=0.126). H2 not established → **demoted** | [genealogy_scale](docs/findings/genealogy_scale.md) |
+| 5 | **Independent triviality oracle** | non-tautological oracle: guard ON **0.15±0.07** vs OFF **0.27±0.08** (was 0.00 vs 0.34, now retired) | REPORT §9.2 |
+| 8 | **Best-of-N baseline** | baseline keeps **1.7x more** certified/ktok (17.85 vs 10.60); full system is a cost/quality trade-off, not a per-token win | [baseline](docs/findings/baseline.md) |
+| 9 | **Hard domain (discovery)** | on a non-recallable sequence: **10/10** survivors genuinely discovered; genealogy delta flips to **+1.33** (vs −1.00 easy), but underpowered at n=3 | [hard_domain](docs/findings/hard_domain.md) |
 
 ## One-command reproduction
 
@@ -90,7 +134,7 @@ The proposer uses a real Anthropic model when a key is present in a gitignored
 no/invalid key it degrades to a **deterministic offline candidate generator**, so
 `make demo` still produces real-critic-verified survivors offline.
 
-### Lean headline track (optional)
+### Lean (formal-proof) track — the honest tell: 0 survivors
 
 `scripts/setup_lean.sh` installs `elan`, pins a Lake project to a stable mathlib,
 and runs `lake exe cache get` (prebuilt oleans — the setup-time trick). Then:
@@ -99,13 +143,17 @@ and runs `lake exe cache get` (prebuilt oleans — the setup-time trick). Then:
 make demo CONFIG=configs/lean_nt.yaml      # Lean 4 / mathlib critic, number theory
 ```
 
-**Status (honest):** the Lean toolchain is wired and works (it really compiles
-candidates via `lake env lean`), but at the demo budget it produced **0
-certified-novel survivors** (most candidates hit `UNPROVEN_BUDGET`; the one that
-proved did not survive the significance critic). **The headline therefore rests on
-the code-exec critic**, exactly as the build plan permits as the floor (§13/§14).
-Lean is the path to the formal-novelty headline; closing it needs more proof
-budget and proof-search retries (see [`ROADMAP.md`](ROADMAP.md)).
+**This is the load-bearing caveat, stated up front, not buried.** Everything the
+code-exec critic certifies is verified by **fuzz-testing on bounded integers —
+not proof**. The Lean track is the only path here that would constitute actual
+formal verification, and at the demo budget it produced **0 certified-novel
+survivors**: the toolchain really compiles candidates via `lake env lean`, but
+most candidates hit `UNPROVEN_BUDGET` and the one that proved did not clear the
+significance critic. So the gap between "passes tests on small inputs" and
+"proved" is **not** closed by this prototype. The code-exec headline is the
+**floor** the build plan permits (§13/§14); closing the formal track needs more
+proof budget and proof-search retries (see [`ROADMAP.md`](ROADMAP.md)). Read the
+"certified-novel" numbers throughout this repo with that distinction in mind.
 
 ## Shareable links (offline replay + GitHub Pages)
 
@@ -179,13 +227,29 @@ significance to "it compiled," the novelty would be gone (§15).
 - **Frozen proposer.** No weight updates in this prototype; the genealogy and
   significance mechanisms are demonstrated via **in-context** conditioning only.
   Weight-update RL is Tier-1 future work — see [`ROADMAP.md`](ROADMAP.md).
-- **Operational — not formal — novelty.** `certify_novel` is a corpus-match +
-  automation + embedding-distance **proxy** for a prototype. **Formal
-  independence** (the rigorous version) is a Stage-1/2 deliverable, not claimed here.
-- **Small scale.** A miniature artifact: ~18 conjectures over 3 rounds, 3 seeds.
-  The headline is the **mechanism** and the **per-compute benchmark**, not raw
-  output volume. The genealogy ablation does not yet show a certified-novel lead
-  at this budget; we report that plainly.
+- **Operational — not formal — novelty; testing is not proof.** `certify_novel`
+  is a corpus-match + automation + embedding-distance **proxy**, and validity is
+  **execution-based fuzz-testing on bounded integers**, not a proof. The Lean
+  formal track produced **0** certified-novel survivors at the demo budget (above)
+  — that gap is real and unclosed. **Formal independence** is a Stage-1/2
+  deliverable, not claimed here.
+- **Rediscovery, not discovery (on the default domain).** The survivors are
+  classical textbook number-theory identities; the model can recall them, so the
+  default domain tests **recall**, not discovery. A separate non-recallable
+  domain ([`docs/findings/hard_domain.md`](docs/findings/hard_domain.md)) tests
+  discovery and produces genuinely-discovered survivors, but is underpowered.
+- **Intra-run duplicates.** The headline run's 7 raw certified survivors are only
+  **4** distinct under embedding dedup; 3 were near-duplicates of each other
+  (finding #7, since gated).
+- **Genealogy (H2) is not established.** Scaled to n=8 with the API proposer the
+  genealogy treatment does **not** beat control (4.88±1.96 vs 6.88±2.57, not
+  significant) and its trivial rate is **not** lower than control's. Per the
+  review we demote the H2 claim; see [`docs/FINDINGS.md`](docs/FINDINGS.md).
+- **No per-token win.** A best-of-N + dedup baseline keeps ~1.7x more certified
+  items per kilo-token; the full loop is a cost/quality trade-off, not a per-token
+  win (finding #8).
+- **Small scale.** A miniature artifact: ~18 conjectures over 3 rounds. The
+  ablations scale the genealogy arm to n=8 seeds but remain modestly powered.
 - **The mock critic is never a result.** `MockCritic` validates the
   loop/ledger/accounting/harness in seconds; no reported number uses it (§3).
 - **API non-determinism.** With the API proposer, sampling is seeded but the

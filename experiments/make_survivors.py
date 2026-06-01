@@ -107,9 +107,35 @@ def render(run: str, top: int = 5) -> str:
     if os.path.exists(mp):
         metrics = json.load(open(mp, encoding="utf-8"))
 
-    survivors = [e for e in entries if e.get("certified_novel")]
-    survivors.sort(key=lambda e: e.get("significance", {}).get("score", 0), reverse=True)
+    all_survivors = [e for e in entries if e.get("certified_novel")]
+    n_certified = len(all_survivors)
+    survivors = sorted(
+        all_survivors,
+        key=lambda e: e.get("significance", {}).get("score", 0),
+        reverse=True,
+    )
     survivors = survivors[:top]
+
+    # Honest hardness curation note: the displayed top-N may all share one
+    # hardness value while the full certified set does not (review finding #6).
+    shown_hard = sorted({round(e.get("significance", {}).get("hardness", 0.0), 2) for e in survivors})
+    all_hard = sorted({round(e.get("significance", {}).get("hardness", 0.0), 2) for e in all_survivors})
+
+    # Optional: an intra-survivor dedup finding produced by
+    # crm.novelty.dedup_survivors on this run (review finding #7). If present,
+    # surface the raw-vs-deduped count so the headline is not overstated.
+    dedup = {}
+    for cand in (
+        os.path.join(run, "dedup_collapse.json"),
+        os.path.join("results", "findings", "dedup_collapse.json"),
+        os.path.join("docs", "findings", "dedup_collapse.json"),
+    ):
+        if os.path.exists(cand):
+            try:
+                dedup = json.load(open(cand, encoding="utf-8"))
+            except Exception:
+                dedup = {}
+            break
 
     # Siblings = every non-certified entry, grouped by round (genealogy story).
     failed = [e for e in entries if not e.get("certified_novel")]
@@ -139,6 +165,40 @@ def render(run: str, top: int = 5) -> str:
         f"({metrics.get('total_conjectures','?')} conjectures over "
         f"{metrics.get('n_rounds','?')} rounds).\n"
     )
+
+    # Honest reframing (review pass): operational novelty, intra-run dedup,
+    # hardness-curation, and the testing-is-not-proof caveat.
+    out.append(
+        "> **Read this honestly.** *Certified-novel* here means **operational** "
+        "novelty: a claim that is not a corpus restatement, is not closeable by a "
+        "degenerate-impl probe, and is at embedding-distance >= 0.35 from the static "
+        "corpus. It is **fuzz-tested on bounded integers, not proved** — see "
+        "[`docs/FINDINGS.md`](FINDINGS.md). The survivors below are classical "
+        "textbook number-theory identities (Mobius inversion = phi, sum phi(d) = n, "
+        "sum floor(n/k) = sum d(n)); the system **rediscovers** them, it does not "
+        "discover new mathematics.\n"
+    )
+    if dedup.get("raw_certified") and dedup.get("deduped_certified"):
+        out.append(
+            f"> **Intra-run dedup (finding #7).** This run did not apply "
+            f"intra-survivor dedup at certification time. Re-measured with "
+            f"`crm.novelty.dedup_survivors` (same MiniLM embedder, delta=0.35), the "
+            f"**{dedup['raw_certified']}** certified survivors collapse to "
+            f"**{dedup['deduped_certified']}** distinct clusters "
+            f"({dedup.get('n_collapsed','?')} are intra-run near-duplicates) — see "
+            f"[`docs/findings/dedup_collapse.md`](findings/dedup_collapse.md). The "
+            f"updated `certify_novel` gate now blocks such duplicates at admission.\n"
+        )
+    if len(all_hard) > 1 and len(shown_hard) == 1:
+        out.append(
+            f"> **Hardness curation note (finding #6).** The {len(survivors)} "
+            f"survivors shown below (top by score) all report hardness "
+            f"{shown_hard[0]:.2f}, but the full set of {n_certified} certified "
+            f"survivors spans hardness {{{', '.join(f'{h:.2f}' for h in all_hard)}}}. "
+            f"Literal +-1 integer-literal perturbation measures numeric brittleness, "
+            f"not explanatory depth; see "
+            f"[`docs/findings/hardness_distribution.md`](findings/hardness_distribution.md).\n"
+        )
 
     for i, e in enumerate(survivors, 1):
         sig = e.get("significance", {})

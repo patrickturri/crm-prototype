@@ -4,6 +4,12 @@ Top 5 certified-novel survivors from a **real** run (`code-20260531-225343`, cri
 
 > Headline KPIs for this run (seed 0; 3-seed ablation means in REPORT.md): **7** certified-novel survivors · **0.756** per kilo-token · **0.58s** total critic time (~32 ms/conjecture; not annualized) (18 conjectures over 3 rounds).
 
+> **Read this honestly.** *Certified-novel* here means **operational** novelty: a claim that is not a corpus restatement, is not closeable by a degenerate-impl probe, and is at embedding-distance >= 0.35 from the static corpus. It is **fuzz-tested on bounded integers, not proved** — see [`docs/FINDINGS.md`](FINDINGS.md). The survivors below are classical textbook number-theory identities (Mobius inversion = phi, sum phi(d) = n, sum floor(n/k) = sum d(n)); the system **rediscovers** them, it does not discover new mathematics.
+
+> **Intra-run dedup (finding #7).** This run did not apply intra-survivor dedup at certification time. Re-measured with `crm.novelty.dedup_survivors` (same MiniLM embedder, delta=0.35), the **7** certified survivors collapse to **4** distinct clusters (3 are intra-run near-duplicates) — see [`docs/findings/dedup_collapse.md`](findings/dedup_collapse.md). The updated `certify_novel` gate now blocks such duplicates at admission.
+
+> **Hardness curation note (finding #6).** The 5 survivors shown below (top by score) all report hardness 0.88, but the full set of 7 certified survivors spans hardness {0.62, 0.75, 0.88}. Literal +-1 integer-literal perturbation measures numeric brittleness, not explanatory depth; see [`docs/findings/hardness_distribution.md`](findings/hardness_distribution.md).
+
 ## 1. Mobius inversion: sum of mu(d)*floor(n/d) over divisors d of n equals phi(n).
 
 **Statement.** For n>=1, sum_{d|n} mu(d)*floor(n/d) equals phi(n), where mu is the Mobius function and phi is Euler's totient — this is the Mobius inversion of n = sum_{d|n} phi(d)

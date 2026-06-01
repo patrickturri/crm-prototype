@@ -255,24 +255,39 @@ class CodeExecCritic:
 
     # ---- significance perturbations (§5.2, §6.1) -----------------------
     def perturb(
-        self, conjecture: Conjecture, p: int, seed: int
+        self, conjecture: Conjecture, p: int, seed: int, strategy: str = "literal"
     ) -> list[Conjecture]:
         """Mutate the spec/constants and return re-runnable candidates (§6.1).
 
         The hardness signal asks: do small changes to the load-bearing parts of
         the claim break it? For a code task the load-bearing parts are the
-        numeric constants in the `reference_impl` and the `property` predicate.
-        We mutate those constants (k -> k±1, 0<->1) ONE AT A TIME, holding the
+        numeric constants AND the operators/boundaries in the `reference_impl`
+        and the `property` predicate. We mutate those ONE AT A TIME, holding the
         OTHER side fixed, so each neighbour is a genuinely different claim:
 
-          * mutate a constant in the reference_impl but keep the property fixed
+          * mutate the reference_impl but keep the property fixed
             => a contentful impl now violates its own property => FALSE (breaks).
-          * mutate a constant in the property but keep the impl fixed
+          * mutate the property but keep the impl fixed
             => likewise a contentful claim breaks.
 
         A vacuous/over-permissive spec (e.g. property always True) survives these
         mutations => low hardness => correctly flagged trivial. This is real
         execution, not a heuristic: every neighbour is run in the sandbox.
+
+        ``strategy`` selects the mutation family (addresses review finding #6,
+        where literal +-1 mutations saturate hardness at 0.88 for every
+        survivor):
+
+          * ``"literal"`` (default): ONLY integer-literal mutations k->k+-1,
+            0->1. This reproduces the original behaviour byte-for-byte so the
+            two strategies can be A/B'd against the same survivors.
+          * ``"semantic"``: ONLY operand/operator-level rewrites — range-boundary
+            edits, comparison/arithmetic-operator swaps, condition negation,
+            and off-by-domain body shifts. No literal mutations.
+          * ``"rich"`` / ``"all"``: BOTH literal and semantic mutations.
+
+        Every neighbour, regardless of strategy, flows through the SAME
+        dedup-and-sample tail and is run in the sandbox — no heuristic scoring.
         """
         import re
         import random
@@ -282,23 +297,98 @@ class CodeExecCritic:
         prop = ex.get("property", "")
         base_id = conjecture.id
 
+        do_literal = strategy in ("literal", "rich", "all")
+        do_semantic = strategy in ("semantic", "rich", "all")
+
         int_re = re.compile(r"(?<![A-Za-z0-9_.])(\d+)(?![A-Za-z0-9_.])")
 
+        # Operator/comparison swaps: each (pattern, replacement, note). The
+        # patterns require non-word boundaries so we never split an identifier.
+        # Applied ONE occurrence at a time below.
+        _OP_SWAPS: list[tuple[str, str, str]] = [
+            (r"==", "!=", "==/!="),
+            (r"!=", "==", "!=/=="),
+            (r"<=", "<", "<=/<"),
+            (r">=", ">", ">=/>"),
+            (r"<", "<=", "</<="),
+            (r">", ">=", ">/>="),
+            (r"%", "//", "%//"),
+            (r"\+", "-", "+/-"),
+            (r"-", "+", "-/+"),
+            (r"\*", "//", "*//"),
+            (r"//", "*", "///*"),
+        ]
+
         def mutate_field(text: str) -> list[tuple[str, str]]:
-            """Return (mutated_text, note) for each single-constant mutation."""
+            """Return (mutated_text, note) for each single mutation of `text`.
+
+            Honours the enclosing ``strategy``: literal mutations gated on
+            ``do_literal``, operand/operator rewrites gated on ``do_semantic``.
+            """
             out: list[tuple[str, str]] = []
-            for m in int_re.finditer(text):
-                k = int(m.group(1))
-                s, e = m.span(1)
-                cands: list[int] = [k + 1]
-                if k >= 1:
-                    cands.append(k - 1)
-                if k == 0:
-                    cands.append(1)
-                for nk in cands:
-                    if nk == k:
-                        continue
-                    out.append((text[:s] + str(nk) + text[e:], f"{k}->{nk}"))
+
+            # --- literal mutations (original behaviour) --------------------
+            if do_literal:
+                for m in int_re.finditer(text):
+                    k = int(m.group(1))
+                    s, e = m.span(1)
+                    cands: list[int] = [k + 1]
+                    if k >= 1:
+                        cands.append(k - 1)
+                    if k == 0:
+                        cands.append(1)
+                    for nk in cands:
+                        if nk == k:
+                            continue
+                        out.append((text[:s] + str(nk) + text[e:], f"{k}->{nk}"))
+
+            # --- semantic mutations (operand/operator-level rewrites) ------
+            if do_semantic:
+                out.extend(_semantic_mutations(text))
+
+            return out
+
+        # range(a, b) boundary edits: shift each numeric/expression bound by
+        # +-1 at the source-token level. Captures the common idioms
+        # range(1, n+1), range(0, n+1), range(n), range(2, n).
+        _range_re = re.compile(r"range\(([^()]*)\)")
+        _ident_re = re.compile(r"(?<![A-Za-z0-9_.])([A-Za-z_]\w*)(?![A-Za-z0-9_(.])")
+
+        def _semantic_mutations(text: str) -> list[tuple[str, str]]:
+            out: list[tuple[str, str]] = []
+
+            # 1. operator / comparison / arithmetic swaps, one occurrence each.
+            for pat, repl, note in _OP_SWAPS:
+                cre = re.compile(pat)
+                for m in cre.finditer(text):
+                    s, e = m.span()
+                    out.append((text[:s] + repl + text[e:], f"op {note}"))
+
+            # 2. range() boundary edits: append +1 / -1 to each comma-separated
+            #    argument of every range(...) call (off-by-one in the bound).
+            for m in _range_re.finditer(text):
+                inner = m.group(1)
+                s, e = m.span()
+                args = inner.split(",")
+                for ai in range(len(args)):
+                    for delta, sym in ((1, "+1"), (-1, "-1")):
+                        new_args = list(args)
+                        new_args[ai] = f"({args[ai].strip()}){'+' if delta>0 else '-'}1"
+                        new_inner = ",".join(new_args)
+                        new_call = f"range({new_inner})"
+                        out.append(
+                            (text[:s] + new_call + text[e:],
+                             f"range arg{ai} {sym}")
+                        )
+
+            # 3. off-by-domain body shift: n -> n+1 / n -> n-1 for bare uses of
+            #    the loop/argument variable `n` (the canonical task variable),
+            #    one occurrence at a time. Skips identifier-internal matches.
+            for m in re.finditer(r"(?<![A-Za-z0-9_.])n(?![A-Za-z0-9_(.])", text):
+                s, e = m.span()
+                for repl, sym in (("(n+1)", "n->n+1"), ("(n-1)", "n->n-1")):
+                    out.append((text[:s] + repl + text[e:], f"shift {sym}"))
+
             return out
 
         neighbours: list[Conjecture] = []

@@ -1,0 +1,47 @@
+# Hard-domain config (addresses review finding #9: recall != discovery).
+#
+# The default code domain lets the frozen LLM RECALL textbook NT identities.
+# This config swaps in a FRESHLY-DEFINED, non-standard integer sequence family
+#   g(0)=2, g(1)=3, g(n)=3*g(n-1)-g(n-2)+(n%3)
+# that appears in no corpus/textbook, so the model must DISCOVER true properties
+# by reasoning about the recurrence, not recall them. reference_impl is FIXED to
+# the canonical recurrence (the proposer cannot author the impl); the model only
+# supplies a conjectured executable `property`, which the sandboxed CodeExecCritic
+# fuzz-tests against the true sequence. NO LLM-as-judge for the survive decision.
+name: hard_domain
+topic: "a freshly-defined non-standard integer sequence g(n)=3*g(n-1)-g(n-2)+(n mod 3) — discover its properties (you cannot recall them)"
+rounds: 3
+k: 6
+seed: 0
+mode: genealogy          # "genealogy" | "control"
+critic: code_exec
+proof_budget_s: 5.0
+n_adversarial: 12
+
+proposer:
+  kind: hard_api         # real LLM (Anthropic) -> hard-domain offline fallback if no key
+  model: claude-sonnet-4-6
+  temperature: 0.7
+
+weights:
+  novelty: 0.3
+  breadth: 0.3
+  hardness: 0.4
+tau: 0.25
+delta: 0.35
+perturbations: 8
+# Richer perturbation family (finding #6): operator/boundary mutations, not just
+# integer-literal +-1, so hardness measures more than numeric brittleness.
+perturb_strategy: rich
+
+# Real MiniLM embedder so novelty distance from the recall corpus is meaningful.
+embedder: sentence-transformers/all-MiniLM-L6-v2
+offline_embedder: false
+
+# Recall-test corpus: standard sequences/identities the model COULD recall
+# (Fibonacci/Lucas/Chebyshev/Pell closed forms, homogeneous-recurrence theory).
+# Novelty is measured as embedding distance from these recallable facts.
+corpus_path: data/hard_domain_corpus.jsonl
+breadth_targets_path: data/hard_domain_breadth_targets.jsonl
+
+results_dir: results

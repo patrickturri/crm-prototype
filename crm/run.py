@@ -116,6 +116,17 @@ def _build_proposer(spec: dict[str, Any]):
         from crm.proposers_code import APICodeProposer
 
         return APICodeProposer(**{k: v for k, v in spec.items() if k != "kind"})
+    if kind == "hard_offline":
+        from crm.proposers_hard import HardDomainOfflineProposer
+
+        return HardDomainOfflineProposer()
+    if kind in ("hard_api", "hard"):
+        # Hard-domain LLM proposer (finding #9) with deterministic offline
+        # fallback. Same Proposer interface; reference_impl is fixed to the
+        # canonical recurrence so the model can only conjecture properties.
+        from crm.proposers_hard import HardDomainAPIProposer
+
+        return HardDomainAPIProposer(**{k: v for k, v in spec.items() if k != "kind"})
     if kind == "offline_lean":
         from crm.proposers_lean import OfflineLeanProposer
 
@@ -173,6 +184,7 @@ def run_from_config(cfg: dict[str, Any], run_name: str | None = None) -> dict:
         breadth_target_statements=breadth_statements,
         breadth_target_specs=breadth_specs,
         seed=int(cfg.get("seed", 0)),
+        perturb_strategy=cfg.get("perturb_strategy", "literal"),
     )
 
     accountant = Accountant(
