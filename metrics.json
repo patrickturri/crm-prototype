@@ -1,10 +1,10 @@
 {
-  "certified_novel": 6,
-  "certified_novel_per_critic_hour": 26179.869175230004,
-  "certified_novel_per_kilo_token": 0.6276150627615062,
+  "certified_novel": 7,
+  "certified_novel_per_critic_hour": 43285.35587607019,
+  "certified_novel_per_kilo_token": 0.7556131260794474,
   "critic": "code_exec",
   "critic_invocations": 18,
-  "critic_seconds": 0.825061,
+  "critic_seconds": 0.582183,
   "embedding_calls": 0,
   "est_cost_usd": 0.0,
   "gpu_seconds": 0.0,
@@ -12,48 +12,47 @@
   "mode": "genealogy",
   "n_rounds": 3,
   "proposer": "api_code",
-  "proposer_tokens_in": 2753,
-  "proposer_tokens_out": 6807,
-  "proposer_tokens_total": 9560,
+  "proposer_tokens_in": 2535,
+  "proposer_tokens_out": 6729,
+  "proposer_tokens_total": 9264,
   "rounds": [
     {
       "critic_invocations": 6,
-      "critic_seconds": 0.20555962529033422,
+      "critic_seconds": 0.18589999713003635,
       "embedding_calls": 0,
       "gpu_seconds": 0.0,
       "proposer_tokens_in": 391,
-      "proposer_tokens_out": 1987,
+      "proposer_tokens_out": 2313,
       "round": 0,
-      "wall_seconds": 34.23243408277631
+      "wall_seconds": 41.000692542176694
     },
     {
       "critic_invocations": 6,
-      "critic_seconds": 0.40309987450018525,
+      "critic_seconds": 0.19890541629865766,
       "embedding_calls": 0,
       "gpu_seconds": 0.0,
-      "proposer_tokens_in": 825,
-      "proposer_tokens_out": 2389,
+      "proposer_tokens_in": 858,
+      "proposer_tokens_out": 2028,
       "round": 1,
-      "wall_seconds": 33.87804270815104
+      "wall_seconds": 27.295322708319873
     },
     {
       "critic_invocations": 6,
-      "critic_seconds": 0.2164019187912345,
+      "critic_seconds": 0.19737762492150068,
       "embedding_calls": 0,
       "gpu_seconds": 0.0,
-      "proposer_tokens_in": 1537,
-      "proposer_tokens_out": 2431,
+      "proposer_tokens_in": 1286,
+      "proposer_tokens_out": 2388,
       "round": 2,
-      "wall_seconds": 32.35213145799935
+      "wall_seconds": 37.09239379083738
     }
   ],
   "seed": 0,
-  "surviving": 6,
+  "surviving": 7,
   "topic": "elementary number theory and combinatorics (Python-verifiable)",
   "total_conjectures": 18,
-  "wall_seconds": 100.463428,
+  "wall_seconds": 105.389303,
   "_provenance": {
-    "run": "code-20260531-213056",
-    "note": "Headline metrics from the REAL sandboxed CodeExecCritic demo (\u00a76.1). The mock critic is never used in any reported number (\u00a73). The Lean headline track ran but produced 0 certified-novel survivors at this budget (see ROADMAP/README) \u2014 the headline rests on the code critic."
+    "run": "code-20260531-225343"
   }
 }

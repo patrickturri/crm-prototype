@@ -52,9 +52,9 @@ From the **real** sandboxed code-exec critic demo (`metrics.json`):
 
 | metric | value |
 | --- | --- |
-| certified-novel survivors | **6** (of 18 conjectures, 3 rounds) |
-| `certified_novel_per_kilo_token` | **0.628** |
-| `certified_novel_per_critic_hour` | **26,180** |
+| certified-novel survivors | **7** (of 18 conjectures, 3 rounds) |
+| `certified_novel_per_kilo_token` | **0.756** |
+| `certified_novel_per_critic_hour` | **43,285** |
 
 The top survivors — each with its verifiable proof/tests, significance breakdown,
 and the **failed genealogy siblings that explain why they died** — are in

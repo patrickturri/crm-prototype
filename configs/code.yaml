@@ -42,4 +42,12 @@ offline_embedder: false
 # so the novelty test means something).
 corpus_path: data/code_corpus.jsonl
 
+# Breadth = downstream enablement (§5.2): held-out tasks each defined by a
+# canonical helper + a solve(n, h) that USES it. The code-exec critic injects a
+# survivor's verified function as `h` and checks (in the sandbox) that it
+# reproduces the canonical helper inside solve — a real "does this lemma enable a
+# downstream task" signal. A reusable primitive enables several; a one-off
+# property-checker enables none.
+breadth_targets_path: data/code_breadth_targets.jsonl
+
 results_dir: results

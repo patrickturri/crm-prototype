@@ -195,9 +195,20 @@ function bars(sig){
            `<div class="track"><div class="fill" style="width:${pct}%"></div></div>`+
            `<div class="val">${(v||0).toFixed(2)}</div>`;
   };
+  let trivialNote = "";
+  if (sig.is_trivial){
+    // WHY it was suppressed: automation closed it (even if its neighbours are
+    // hard) vs. it sits among true neighbours (hardness < tau). Prefer the
+    // recorded reason; fall back to deriving it from hardness vs tau (0.25).
+    const reason = sig.trivial_reason ||
+      ((sig.hardness != null && sig.hardness < 0.25) ? "low_hardness" : "automation");
+    const why = reason === "automation"
+      ? "closed by automation alone"
+      : "hardness below τ (sits among true neighbours)";
+    trivialNote = ` · <span style="color:var(--trivial)">flagged trivial: ${why} (score forced to 0)</span>`;
+  }
   return `<div class="bars">${mk("novelty",sig.novelty)}${mk("breadth",sig.breadth)}${mk("hardness",sig.hardness)}</div>`+
-         `<div class="score">content score <b>${(sig.score||0).toFixed(2)}</b>`+
-         (sig.is_trivial?` · <span style="color:var(--trivial)">flagged trivial (score forced to 0)</span>`:``)+`</div>`;
+         `<div class="score">content score <b>${(sig.score||0).toFixed(2)}</b>`+trivialNote+`</div>`;
 }
 
 function proofBlock(row){

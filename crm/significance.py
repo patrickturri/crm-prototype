@@ -40,6 +40,7 @@ class Significance:
     hardness: float     # 0..1, fraction of perturbed neighbours that break
     is_trivial: bool    # closeable by automation alone OR hardness < tau
     score: float        # weighted combo; 0 if is_trivial
+    trivial_reason: str | None = None  # "automation" | "low_hardness" | None — WHY it was suppressed
 
 
 def _automation_closeable(critic: "Critic", statement: str) -> bool:
@@ -74,6 +75,7 @@ class SignificanceCritic:
         embedder: str | None = None,
         corpus_statements: list[str] | None = None,
         breadth_target_statements: list[str] | None = None,
+        breadth_target_specs: list[dict] | None = None,
         seed: int = 0,
     ) -> None:
         self.w_novelty = w_novelty
@@ -86,6 +88,13 @@ class SignificanceCritic:
         self.seed = seed
         self.corpus_statements = corpus_statements or []
         self.breadth_target_statements = breadth_target_statements or []
+        # Structured downstream-enablement targets (§5.2). Each is a dict with a
+        # canonical helper (`h_ref`/`h_ref_name`), a `solve(n, h)` that USES the
+        # helper, and a `domain`. The code-exec critic injects the survivor's
+        # verified function as `h` and checks (in the sandbox) that it reproduces
+        # the canonical helper inside `solve` — a real "does this lemma enable a
+        # downstream task" signal, not a string proxy. Empty => structural path.
+        self.breadth_target_specs = breadth_target_specs or []
 
         self._embedder = None
         self._corpus_emb = None  # cached corpus embedding matrix
@@ -167,9 +176,42 @@ class SignificanceCritic:
             return broken / len(perts), results
         return self.hardness(conjecture.statement, critic)
 
-    def breadth(self, statement: str, critic: "Critic") -> float:
-        """Fraction of M held-out targets that become provable WITH this lemma
-        available as a hypothesis, normalised (§5.2).
+    def breadth(self, conjecture: "Conjecture", critic: "Critic") -> float:
+        """Fraction of M held-out downstream targets this lemma ENABLES (§5.2).
+
+        Two operationalisations, both real (no string-matching, no fabrication):
+
+        * **Enablement path (code-exec domain).** If the critic exposes an
+          `enables(conjecture, target)` hook and we have structured target specs,
+          we inject the survivor's *verified function* as the helper `h` of each
+          held-out downstream task and check, in the sandbox, that it reproduces
+          the canonical helper inside the task's `solve(n, h)` over the task's
+          domain (with a guard that the task genuinely depends on the helper).
+          breadth = (# targets the lemma supplies the building block for) / M.
+          A reusable primitive (totient, divisor-count, …) enables several tasks;
+          a one-off property-checker enables none. This is the §5.2 "becomes
+          provable when this lemma is available as a hypothesis" signal, executed.
+
+        * **Structural path (Lean / arith statement-only domains).** Falls back to
+          the conservative statement-level proxy below.
+        """
+        enables = getattr(critic, "enables", None)
+        specs = self.breadth_target_specs[: self.breadth_targets]
+        if callable(enables) and specs:
+            considered = 0
+            enabled = 0
+            for tgt in specs:
+                considered += 1
+                try:
+                    if enables(conjecture, tgt):
+                        enabled += 1
+                except Exception:
+                    pass
+            return (float(enabled) / float(considered)) if considered else 0.0
+        return self._breadth_structural(conjecture.statement, critic)
+
+    def _breadth_structural(self, statement: str, critic: "Critic") -> float:
+        """Statement-level structural proxy (Lean/arith path).
 
         Operationalisation for the offline NT critic: for each held-out target
         of the form `forall ..., H -> C`, we test whether the target's
@@ -228,7 +270,7 @@ class SignificanceCritic:
         stmt = conjecture.statement
 
         nov = self.novelty(stmt)
-        brd = self.breadth(stmt, critic)
+        brd = self.breadth(conjecture, critic)
         hard, _ = self.hardness_for_conjecture(conjecture, critic)
 
         # is_trivial: closed by automation ALONE, OR hardness < tau (§5.2).
@@ -245,6 +287,16 @@ class SignificanceCritic:
         else:
             auto = _automation_closeable(critic, stmt)
         is_trivial = bool(auto or hard < self.tau)
+        # Record WHY it was suppressed (§5.2): automation closed it (even if its
+        # neighbours are hard) vs. it sits in a field of true neighbours
+        # (hardness < tau). The viewer/ledger surface this so a high-hardness
+        # automation-closed card doesn't read as a contradiction.
+        if not is_trivial:
+            trivial_reason = None
+        elif auto:
+            trivial_reason = "automation"
+        else:
+            trivial_reason = "low_hardness"
 
         if is_trivial:
             score = 0.0
@@ -257,4 +309,5 @@ class SignificanceCritic:
             hardness=round(hard, 6),
             is_trivial=is_trivial,
             score=round(score, 6),
+            trivial_reason=trivial_reason,
         )

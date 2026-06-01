@@ -78,6 +78,27 @@ def _load_jsonl_statements(path: str | Path) -> list[str]:
     return out
 
 
+def _load_jsonl_objects(path: str | Path) -> list[dict]:
+    """Load full JSONL rows (used for structured breadth-enablement targets)."""
+    import json
+
+    p = Path(path)
+    if not p.exists():
+        return []
+    out: list[dict] = []
+    for line in p.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            obj = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(obj, dict):
+            out.append(obj)
+    return out
+
+
 def _build_proposer(spec: dict[str, Any]):
     kind = (spec.get("kind") or "stub").lower()
     if kind == "stub":
@@ -129,6 +150,10 @@ def run_from_config(cfg: dict[str, Any], run_name: str | None = None) -> dict:
     corpus_statements = _load_jsonl_statements(corpus_path)
     breadth_path = cfg.get("breadth_targets_path", corpus_path)
     breadth_statements = _load_jsonl_statements(breadth_path)
+    # Structured downstream-enablement targets (rows with a `solve`/`h_ref`):
+    # used by the code-exec critic's real enablement breadth (§5.2). Plain
+    # statement corpora yield none, so the structural fallback still applies.
+    breadth_specs = [o for o in _load_jsonl_objects(breadth_path) if "solve" in o]
 
     # For fast offline runs (smoke), force the deterministic hash embedder so we
     # never block on a model download; real runs set embedder explicitly.
@@ -146,6 +171,7 @@ def run_from_config(cfg: dict[str, Any], run_name: str | None = None) -> dict:
         embedder=embedder,
         corpus_statements=corpus_statements,
         breadth_target_statements=breadth_statements,
+        breadth_target_specs=breadth_specs,
         seed=int(cfg.get("seed", 0)),
     )
 

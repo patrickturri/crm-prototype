@@ -341,6 +341,50 @@ class CodeExecCritic:
         rng.shuffle(uniq)
         return uniq[:p]
 
+    # ---- downstream enablement (feeds breadth, §5.2) -------------------
+    def enables(self, survivor: Conjecture, target: dict[str, Any]) -> bool:
+        """Does the survivor's VERIFIED function enable this held-out task? (§5.2)
+
+        We inject the survivor's reference function as the helper ``h`` of the
+        target's ``solve(n, h)`` and check, in the sandbox, that it reproduces the
+        target's canonical helper over the target's domain. A guard first confirms
+        the target genuinely DEPENDS on the helper (an identity helper gives a
+        different answer somewhere), so we count real enablement, not a task that
+        any function would satisfy. Real execution, never fabricated; a signature
+        mismatch / wrong output simply means "not enabled" (honest 0).
+        """
+        payload = _payload(survivor)
+        impl = (payload.get("reference_impl") or "").strip()
+        fname = _func_name(impl)
+        h_ref = (target.get("h_ref") or "").strip()
+        h_ref_name = (target.get("h_ref_name") or "_crm_h_ref").strip()
+        solve = (target.get("solve") or "").strip()
+        domain = (target.get("domain") or "range(1, 13)").strip()
+        if not impl or not fname or not h_ref or not solve:
+            return False
+
+        program = "\n".join([
+            "import math",
+            "from math import comb, gcd, factorial as _crm_factorial",
+            "# --- survivor's verified reference implementation ---",
+            impl,
+            "# --- target's canonical helper + downstream task ---",
+            h_ref,
+            solve,
+            f"_crm_dom = list({domain})",
+            "_crm_id = (lambda _x: _x)",
+            # guard: the task must genuinely depend on the helper's CONTENT.
+            f"assert any(solve(_n, _crm_id) != solve(_n, {h_ref_name}) "
+            f"for _n in _crm_dom), 'helper-independent target'",
+            # enablement: the survivor's function reproduces the canonical helper
+            # INSIDE the downstream computation, for every n in the domain.
+            f"assert all(solve(_n, {fname}) == solve(_n, {h_ref_name}) "
+            f"for _n in _crm_dom), 'survivor does not supply the building block'",
+            "print('ENABLED')",
+        ])
+        res = run_in_sandbox(program, timeout_s=self.timeout_s)
+        return res.status == "ok"
+
     # ---- automation-closeability (feeds is_trivial, §5.2) --------------
     def automation_closeable(self, statement: str) -> bool:
         """Statement-only path (used by the Lean/arith critics). The code critic
