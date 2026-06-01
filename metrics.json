@@ -1,7 +1,7 @@
 {
   "certified_novel": 7,
-  "certified_novel_per_critic_hour": 43285.35587607019,
   "certified_novel_per_kilo_token": 0.7556131260794474,
+  "critic_seconds_per_certified_novel": 0.083169,
   "critic": "code_exec",
   "critic_invocations": 18,
   "critic_seconds": 0.582183,

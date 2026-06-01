@@ -129,10 +129,13 @@ def render(run: str, top: int = 5) -> str:
         f"same run that explain WHY they didn't survive.\n"
     )
     out.append(
-        f"> Headline KPIs for this run: "
+        f"> Headline KPIs for this run (seed {metrics.get('seed','?')}; "
+        f"3-seed ablation means in REPORT.md): "
         f"**{metrics.get('certified_novel','?')}** certified-novel survivors · "
         f"**{metrics.get('certified_novel_per_kilo_token',0):.3f}** per kilo-token · "
-        f"**{metrics.get('certified_novel_per_critic_hour',0):.0f}** per critic-hour "
+        f"**{metrics.get('critic_seconds',0):.2f}s** total critic time "
+        f"(~{1000*metrics.get('critic_seconds',0)/max(metrics.get('critic_invocations',1),1):.0f} ms/conjecture; "
+        f"not annualized) "
         f"({metrics.get('total_conjectures','?')} conjectures over "
         f"{metrics.get('n_rounds','?')} rounds).\n"
     )

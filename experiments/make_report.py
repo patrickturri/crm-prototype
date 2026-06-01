@@ -245,10 +245,10 @@ def main(argv: list[str] | None = None) -> int:
         "EXACTLY one variable. Plots show **mean ± std** over seeds.\n"
     )
     md.append("## 9.1 Genealogy ablation (tests H2)\n")
-    md.append("![Genealogy ablation](results/plots/ablation_genealogy.png)\n")
+    md.append("![Genealogy ablation](docs/assets/ablation_genealogy.png)\n")
     md.append(g_para + "\n")
     md.append("## 9.2 Significance ablation (reward-hack guard)\n")
-    md.append("![Significance ablation](results/plots/ablation_significance.png)\n")
+    md.append("![Significance ablation](docs/assets/ablation_significance.png)\n")
     md.append(s_para + "\n")
     md.append("---\n")
     md.append(

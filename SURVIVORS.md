@@ -2,7 +2,7 @@
 
 Top 5 certified-novel survivors from a **real** run (`code-20260531-225343`, critic = `code_exec`, proposer = `api_code`). Every survivor below was produced by the loop and verified by the critic — **none is hand-authored** (§3, §12.3). Each carries its verifiable proof/tests, its significance breakdown, and the failed genealogy siblings from the same run that explain WHY they didn't survive.
 
-> Headline KPIs for this run: **7** certified-novel survivors · **0.756** per kilo-token · **43285** per critic-hour (18 conjectures over 3 rounds).
+> Headline KPIs for this run (seed 0; 3-seed ablation means in REPORT.md): **7** certified-novel survivors · **0.756** per kilo-token · **0.58s** total critic time (~32 ms/conjecture; not annualized) (18 conjectures over 3 rounds).
 
 ## 1. Mobius inversion: sum of mu(d)*floor(n/d) over divisors d of n equals phi(n).
 

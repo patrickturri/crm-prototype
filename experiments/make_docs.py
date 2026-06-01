@@ -140,8 +140,9 @@ def copy_report() -> None:
     if not src.exists():
         raise SystemExit("missing REPORT.md — run `make report` first.")
     text = src.read_text(encoding="utf-8")
-    # REPORT.md references results/plots/<x>.png; docs version uses assets/<x>.png.
-    text = text.replace("results/plots/", "assets/")
+    # REPORT.md references docs/assets/<x>.png (resolves on GitHub from repo root);
+    # the docs/ copy sits beside assets/, so it uses the relative assets/<x>.png.
+    text = text.replace("docs/assets/", "assets/")
     _assert_clean(text, "docs/REPORT.md")
     (DOCS / "REPORT.md").write_text(text, encoding="utf-8")
 

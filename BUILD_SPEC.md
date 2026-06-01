@@ -251,8 +251,8 @@ Both write per-seed CSVs to `results/` and are rendered by `make_report.py`.
 `Accountant` meters, per round and total: proposer tokens in/out (+ est. cost if API), embedding calls, **critic invocations and critic wall-seconds**, total wall-clock, GPU-seconds (local). `metrics.json` must include the headline:
 
 ```
-certified_novel_per_kilo_token   = certified_novel / (proposer_tokens / 1000)
-certified_novel_per_critic_hour  = certified_novel / (critic_seconds / 3600)
+certified_novel_per_kilo_token     = certified_novel / (proposer_tokens / 1000)
+critic_seconds_per_certified_novel = critic_seconds / certified_novel  # measured cost, NOT an hourly extrapolation
 ```
 
 This *is* the "certified-novelty-per-compute" benchmark, in miniature. Keep the default config cheap (< a few $, < ~30 min end-to-end).
@@ -308,7 +308,7 @@ Stop and ship at the highest phase reached; the artifact is valuable from Phase 
 - [ ] `make demo` produces ≥1 **certified-novel** survivor from a **real** critic with proof/tests attached.
 - [ ] Genealogy ablation plot exists, ≥3 seeds, mean±std; treatment vs control clearly labelled.
 - [ ] Significance ablation plot shows trivial-survivor rate dropping with the critic on.
-- [ ] `metrics.json` reports `certified_novel_per_kilo_token` and `_per_critic_hour`.
+- [ ] `metrics.json` reports `certified_novel_per_kilo_token` and `critic_seconds_per_certified_novel`.
 - [ ] Sandbox demonstrably blocks network + out-of-sandbox FS access.
 - [ ] `SURVIVORS.md` shows ≥3 survivors each with failed genealogy siblings.
 - [ ] README's honest-limits section present and accurate.
@@ -347,7 +347,7 @@ Leave clean seams for, but **do not build**: weight-update RL (GRPO/PPO via `veR
 
 **6.1 — Tracked docs assets.** Create a tracked `docs/` dir and copy into it: the two final ablation plots (`docs/assets/ablation_genealogy.png`, `docs/assets/ablation_significance.png`), a curated `docs/SURVIVORS.md` (top ~5 certified-novel results with proofs, significance breakdown, and failed genealogy siblings), and the rendered `docs/REPORT.md`. Use **relative** image paths so they embed on GitHub. (Never hand-author survivors — copy from the real run.)
 
-**6.2 — GitHub-ready README.** Rewrite `README.md` so the repo URL alone tells the story: one-line what-it-is; the thesis in 3 sentences; the two embedded plots with one-sentence readings; one-command repro (`make demo`); a short "How this differs from RLVR / AlphaProof / Absolute Zero" note (reasoned genealogy + hard-to-vary content scoring, not pass/fail + validity); the headline KPI pulled from `metrics.json` (`certified_novel_per_kilo_token`, `_per_critic_hour`); links to `docs/SURVIVORS.md` and the replay viewer; and an honest-limits section (frozen proposer, operational—not formal—novelty, small scale). Verify the embedded plots actually render by checking relative paths resolve to real files.
+**6.2 — GitHub-ready README.** Rewrite `README.md` so the repo URL alone tells the story: one-line what-it-is; the thesis in 3 sentences; the two embedded plots with one-sentence readings; one-command repro (`make demo`); a short "How this differs from RLVR / AlphaProof / Absolute Zero" note (reasoned genealogy + hard-to-vary content scoring, not pass/fail + validity); the headline KPI pulled from `metrics.json` (`certified_novel_per_kilo_token`, `critic_seconds_per_certified_novel`); links to `docs/SURVIVORS.md` and the replay viewer; and an honest-limits section (frozen proposer, operational—not formal—novelty, small scale). Verify the embedded plots actually render by checking relative paths resolve to real files.
 
 **6.3 — Replay-from-logs viewer** (the reliable shareable demo — do NOT make it run anything live). A single self-contained `docs/replay/index.html` (vanilla JS, no build step, works offline by double-clicking the file) loads a committed, **sanitized** `docs/replay/run.jsonl` (a curated copy of a real `ledger.jsonl` from the best run — strip any keys/paths) and renders the loop as a scrubbable timeline:
 - round-by-round; each conjecture a card coloured by `reason_class` (PROVED / FALSE / UNPROVEN_BUDGET / TRIVIAL / DUPLICATE);

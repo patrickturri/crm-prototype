@@ -52,7 +52,7 @@ def test_loop_writes_ledger_and_metrics(tmp_path):
 def test_metrics_have_kpis(tmp_path):
     metrics, _ = _run(tmp_path)
     assert "certified_novel_per_kilo_token" in metrics
-    assert "certified_novel_per_critic_hour" in metrics
+    assert "critic_seconds_per_certified_novel" in metrics
     assert metrics["total_conjectures"] == 8
 
 

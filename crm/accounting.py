@@ -4,8 +4,12 @@ Meters, per round and total: proposer tokens in/out (+ est. cost if API),
 embedding calls, critic invocations and critic wall-seconds, total wall-clock,
 GPU-seconds (local). Produces the headline KPIs into metrics.json:
 
-    certified_novel_per_kilo_token  = certified_novel / (proposer_tokens / 1000)
-    certified_novel_per_critic_hour = certified_novel / (critic_seconds / 3600)
+    certified_novel_per_kilo_token     = certified_novel / (proposer_tokens / 1000)
+    critic_seconds_per_certified_novel = critic_seconds / certified_novel
+
+We report critic cost as directly-measured seconds-per-survivor, NOT an hourly
+rate: annualizing a sub-second critic sample (here ~0.58s total) into a "per
+critic-hour" figure is a ~6000x extrapolation that overstates throughput.
 """
 
 from __future__ import annotations
@@ -104,10 +108,8 @@ class Accountant:
         per_kilo_token = (
             certified_novel / (tokens / 1000.0) if tokens > 0 else 0.0
         )
-        per_critic_hour = (
-            certified_novel / (self.critic_seconds / 3600.0)
-            if self.critic_seconds > 0
-            else 0.0
+        critic_seconds_per_certified_novel = (
+            self.critic_seconds / certified_novel if certified_novel > 0 else 0.0
         )
         return {
             "certified_novel": certified_novel,
@@ -123,7 +125,7 @@ class Accountant:
             "wall_seconds": round(time.monotonic() - self._start, 6),
             "est_cost_usd": round(self.est_cost_usd, 6),
             "certified_novel_per_kilo_token": per_kilo_token,
-            "certified_novel_per_critic_hour": per_critic_hour,
+            "critic_seconds_per_certified_novel": round(critic_seconds_per_certified_novel, 6),
             "rounds": [asdict(s) for s in self.snapshots],
         }
 

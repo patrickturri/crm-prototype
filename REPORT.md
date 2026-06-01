@@ -4,13 +4,13 @@ Two apples-to-apples ablations on the **real sandboxed CodeExecCritic** (no mock
 
 ## 9.1 Genealogy ablation (tests H2)
 
-![Genealogy ablation](results/plots/ablation_genealogy.png)
+![Genealogy ablation](docs/assets/ablation_genealogy.png)
 
 **Genealogy ablation (H2).** Over 3 seeds, the treatment arm (`mode=genealogy`, which conditions the proposer on WHY past conjectures failed and which survivors to build on) reached 6.00±2.16 cumulative certified-novel survivors, versus 7.00±0.82 for the control arm (`mode=control`, prior statements listed for dedup only, no reasons). The two arms are identical in proposer, model, topic, k, rounds, critic, budgets, and seed list — they differ in exactly one variable (the reasoned genealogy), so the gap isolates its value. On secondary metrics the treatment shows mean survivor significance 0.53 vs 0.54, survival rate 0.33 vs 0.39, and trivial rate 0.33 vs 0.28. Reading: the treatment does NOT beat the control here (it trails by 1.00 survivors on average) — reported honestly per §9.1.
 
 ## 9.2 Significance ablation (reward-hack guard)
 
-![Significance ablation](results/plots/ablation_significance.png)
+![Significance ablation](docs/assets/ablation_significance.png)
 
 **Significance ablation (reward-hack guard).** Over 3 seeds, the fraction of “survivors” judged trivial/vacuous by an INDEPENDENT automation check (a degenerate-impl probe that ignores the significance weights) was 0.00±0.00 with the critic ON versus 0.34±0.29 with it OFF. The arms differ in exactly one variable — whether trivial conjectures are suppressed (score 0, excluded) or whether any valid statement counts. Reading: turning the significance critic ON drops the trivial-survivor rate by 0.34 (from 0.34 to 0.00) — the reward-hack guard works.
 

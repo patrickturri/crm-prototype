@@ -52,9 +52,14 @@ From the **real** sandboxed code-exec critic demo (`metrics.json`):
 
 | metric | value |
 | --- | --- |
-| certified-novel survivors | **7** (of 18 conjectures, 3 rounds) |
+| certified-novel survivors | **7** (seed 0; of 18 conjectures, 3 rounds — 3-seed mean **6.0±2.2**, see REPORT.md) |
 | `certified_novel_per_kilo_token` | **0.756** |
-| `certified_novel_per_critic_hour` | **43,285** |
+| critic compute | **0.58s** total to certify 7 (~**32 ms**/conjecture) |
+
+We report critic cost as the measured seconds-per-survivor rather than an
+hourly rate: annualizing a 0.58s sample to a "per critic-hour" figure (~43k)
+is a ~6000× extrapolation, so we quote the measurement instead of the
+extrapolation. `per_kilo_token` is the headline per-compute KPI.
 
 The top survivors — each with its verifiable proof/tests, significance breakdown,
 and the **failed genealogy siblings that explain why they died** — are in
