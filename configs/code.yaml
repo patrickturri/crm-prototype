@@ -1,0 +1,45 @@
+# Code-exec config (§6.1, §11): the FIRST real critic.
+#
+# Domain: the Proposer invents {function_spec, reference_impl, tests, property}.
+# Validity = reference impl passes its own tests AND >=1 independently-generated
+# adversarial test, executed in a SANDBOX (§6.2: subprocess, hard timeout, no
+# network, ephemeral temp dir, restricted builtins, memory cap). NO LLM-as-judge
+# for validity (§3, §15) — every survive/die decision is real execution.
+#
+# Proposer: api_code -> real Anthropic LLM via the gitignored .env, degrading to
+# a DETERMINISTIC offline candidate generator if no/invalid key (so the demo
+# always produces real critic-verified survivors).
+name: code
+topic: "elementary number theory and combinatorics (Python-verifiable)"
+rounds: 3
+k: 6
+seed: 0
+mode: genealogy          # "genealogy" | "control"
+critic: code_exec        # sandboxed real Python-execution critic (§6.1)
+proof_budget_s: 5.0      # hard wall-clock timeout per candidate (sandbox)
+n_adversarial: 12        # independently-generated adversarial inputs per candidate
+
+proposer:
+  kind: api_code         # real LLM (Anthropic) -> offline fallback if no key
+  model: claude-sonnet-4-6
+  temperature: 0.7
+
+# Significance weights (default 0.3/0.3/0.4) and thresholds (§5.2).
+weights:
+  novelty: 0.3
+  breadth: 0.3
+  hardness: 0.4
+tau: 0.25
+delta: 0.35
+perturbations: 8
+
+# Embedding: real MiniLM by default; offline fallback (hash) kicks in only if
+# sentence-transformers / the model is unavailable, and is clearly labelled.
+embedder: sentence-transformers/all-MiniLM-L6-v2
+offline_embedder: false
+
+# Novelty corpus for the code domain (common library functions; real signatures
+# so the novelty test means something).
+corpus_path: data/code_corpus.jsonl
+
+results_dir: results

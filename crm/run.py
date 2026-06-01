@@ -22,8 +22,9 @@ from crm.proposer import APIProposer, LocalProposer, StubProposer
 from crm.significance import SignificanceCritic
 
 
-def _build_critic(name: str):
+def _build_critic(name: str, cfg: dict[str, Any] | None = None):
     name = (name or "mock").lower()
+    cfg = cfg or {}
     if name == "mock":
         from crm.critics.mock import MockCritic
 
@@ -32,7 +33,15 @@ def _build_critic(name: str):
         from crm.critics.arith import ArithCritic
 
         return ArithCritic()
-    # code_exec / lean land in later phases.
+    if name in ("code", "code_exec"):
+        from crm.critics.code_exec import CodeExecCritic
+
+        return CodeExecCritic(
+            timeout_s=float(cfg.get("proof_budget_s", 5.0)),
+            n_adversarial=int(cfg.get("n_adversarial", 12)),
+            seed=int(cfg.get("seed", 0)),
+        )
+    # lean lands in a later phase.
     raise ValueError(f"unknown / not-yet-implemented critic: {name!r}")
 
 
@@ -64,6 +73,15 @@ def _build_proposer(spec: dict[str, Any]):
         return APIProposer(**spec)
     if kind == "local":
         return LocalProposer(**spec)
+    if kind == "offline_code":
+        from crm.proposers_code import OfflineCodeProposer
+
+        return OfflineCodeProposer()
+    if kind in ("api_code", "code"):
+        # Real LLM proposer with offline fallback (degrades if no/invalid key).
+        from crm.proposers_code import APICodeProposer
+
+        return APICodeProposer(**{k: v for k, v in spec.items() if k != "kind"})
     raise ValueError(f"unknown proposer kind: {kind!r}")
 
 
@@ -80,7 +98,7 @@ def run_from_config(cfg: dict[str, Any], run_name: str | None = None) -> dict:
     out_dir = results_root / run_name
 
     proposer = _build_proposer(cfg.get("proposer", {}))
-    critic = _build_critic(cfg.get("critic", "mock"))
+    critic = _build_critic(cfg.get("critic", "mock"), cfg)
 
     sig_cfg = cfg.get("significance", {})
     weights = cfg.get("weights", {})

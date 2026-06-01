@@ -13,10 +13,11 @@ smoke:
 test:
 	$(PYTHON) -m pytest
 
-# Real-critic run (code-exec / Lean) -- filled in by Phases 2 and 4.
+# Real-critic run. Default: the sandboxed code-exec critic (Phase 2). Override
+# with `make demo CONFIG=configs/lean_nt.yaml` once Lean (Phase 4) is in.
+CONFIG ?= configs/code.yaml
 demo:
-	@echo "make demo: implemented in Phase 2 (code-exec) / Phase 4 (Lean)." >&2
-	@exit 1
+	$(PYTHON) -m crm.run --config $(CONFIG)
 
 # Both ablations + plots -- filled in by Phase 3.
 ablation:

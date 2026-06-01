@@ -139,6 +139,34 @@ class SignificanceCritic:
                 broken += 1
         return broken / len(perts), results
 
+    def hardness_for_conjecture(
+        self, conjecture: "Conjecture", critic: "Critic"
+    ) -> tuple[float, list[tuple[str, bool]]]:
+        """Critic-aware hardness (§5.2, §6.1).
+
+        If the critic supplies a `perturb(conjecture, P, seed) -> list[Conjecture]`
+        hook (the code-exec critic does — it mutates the spec/constants and
+        re-runs), we use it so the perturbed neighbours are *full* candidates the
+        critic can actually execute. Otherwise we fall back to the string-level
+        perturbations re-run on the bare statement (the Lean/arith path).
+        """
+        perturb = getattr(critic, "perturb", None)
+        if callable(perturb):
+            perts = perturb(conjecture, self.perturbations, self.seed)
+            if not perts:
+                return 0.0, []
+            results: list[tuple[str, bool]] = []
+            broken = 0
+            for pc in perts:
+                cr = critic.check(pc)
+                provable = bool(cr.valid)
+                label = getattr(pc, "nl_gloss", "") or pc.statement or pc.id
+                results.append((label, provable))
+                if not provable:
+                    broken += 1
+            return broken / len(perts), results
+        return self.hardness(conjecture.statement, critic)
+
     def breadth(self, statement: str, critic: "Critic") -> float:
         """Fraction of M held-out targets that become provable WITH this lemma
         available as a hypothesis, normalised (§5.2).
@@ -201,12 +229,21 @@ class SignificanceCritic:
 
         nov = self.novelty(stmt)
         brd = self.breadth(stmt, critic)
-        hard, _ = self.hardness(stmt, critic)
+        hard, _ = self.hardness_for_conjecture(conjecture, critic)
 
         # is_trivial: closed by automation ALONE, OR hardness < tau (§5.2).
-        # "automation alone" = no supplied proof needed. We check the critic's
-        # automation-closeability on the bare statement.
-        auto = _automation_closeable(critic, stmt)
+        # "automation alone" = no supplied proof needed. For critics that can
+        # only judge from the full candidate (code-exec: a claim is "trivial" if
+        # a degenerate constant/identity impl satisfies it), prefer the
+        # conjecture-aware oracle; else check the bare statement.
+        auto_fn = getattr(critic, "automation_closeable_conjecture", None)
+        if callable(auto_fn):
+            try:
+                auto = bool(auto_fn(conjecture))
+            except Exception:
+                auto = _automation_closeable(critic, stmt)
+        else:
+            auto = _automation_closeable(critic, stmt)
         is_trivial = bool(auto or hard < self.tau)
 
         if is_trivial:
