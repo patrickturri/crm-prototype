@@ -1,6 +1,6 @@
 PYTHON ?= python3
 
-.PHONY: install smoke test demo ablation clean
+.PHONY: install smoke test demo ablation survivors report clean
 
 install:
 	$(PYTHON) -m pip install -e .
@@ -30,6 +30,14 @@ ablation:
 	$(PYTHON) -m experiments.ablation_genealogy --config $(ABLATION_CONFIG) --seeds $(SEEDS)
 	$(PYTHON) -m experiments.ablation_significance --config $(ABLATION_CONFIG) --seeds $(SEEDS)
 	$(PYTHON) -m experiments.make_report
+
+# Phase 5 (§12): regenerate the rendered report (plots + REPORT.md) and the
+# curated SURVIVORS.md from the latest REAL non-mock run. Never hand-authored.
+report:
+	$(PYTHON) -m experiments.make_report
+
+survivors:
+	$(PYTHON) -m experiments.make_survivors
 
 clean:
 	rm -rf results/*/ results/metrics.json

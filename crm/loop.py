@@ -73,6 +73,13 @@ class CRMLoop:
         out = Path(out_dir)
         out.mkdir(parents=True, exist_ok=True)
 
+        # Verifiable artifacts per conjecture (e.g. code-exec reference_impl +
+        # tests). Kept OUT of the §5.1 ledger schema (which stays stable) but
+        # persisted alongside it so REPORT/SURVIVORS can attach the REAL proof
+        # or tests the critic actually ran. Never fabricated — copied verbatim
+        # from the conjecture the critic graded.
+        artifacts: dict[str, dict] = {}
+
         for r in range(cfg.rounds):
             ctx = build_conditioning_context(
                 self.ledger, cfg.topic, cfg.k, mode=cfg.mode
@@ -100,11 +107,26 @@ class CRMLoop:
                     )
                 self.ledger.add(entry)
 
+                ex = dict(c.extra or {})
+                if ex:
+                    artifacts[c.id] = {
+                        "reference_impl": ex.get("reference_impl", ""),
+                        "tests": ex.get("tests", ""),
+                        "property": ex.get("property", ""),
+                        "domain": ex.get("domain", ""),
+                        "lean_statement": ex.get("lean_statement", ""),
+                    }
+
             self.acct.snapshot(round=r)
 
         ledger_path = out / "ledger.jsonl"
         metrics_path = out / "metrics.json"
         self.ledger.dump(ledger_path)
+        if artifacts:
+            import json as _json
+
+            with open(out / "artifacts.json", "w", encoding="utf-8") as f:
+                _json.dump(artifacts, f, ensure_ascii=False, indent=2)
         metrics = self.acct.dump_metrics(
             metrics_path,
             certified_novel=len(self.ledger.certified()),

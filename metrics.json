@@ -1,0 +1,59 @@
+{
+  "certified_novel": 6,
+  "certified_novel_per_critic_hour": 26179.869175230004,
+  "certified_novel_per_kilo_token": 0.6276150627615062,
+  "critic": "code_exec",
+  "critic_invocations": 18,
+  "critic_seconds": 0.825061,
+  "embedding_calls": 0,
+  "est_cost_usd": 0.0,
+  "gpu_seconds": 0.0,
+  "k": 6,
+  "mode": "genealogy",
+  "n_rounds": 3,
+  "proposer": "api_code",
+  "proposer_tokens_in": 2753,
+  "proposer_tokens_out": 6807,
+  "proposer_tokens_total": 9560,
+  "rounds": [
+    {
+      "critic_invocations": 6,
+      "critic_seconds": 0.20555962529033422,
+      "embedding_calls": 0,
+      "gpu_seconds": 0.0,
+      "proposer_tokens_in": 391,
+      "proposer_tokens_out": 1987,
+      "round": 0,
+      "wall_seconds": 34.23243408277631
+    },
+    {
+      "critic_invocations": 6,
+      "critic_seconds": 0.40309987450018525,
+      "embedding_calls": 0,
+      "gpu_seconds": 0.0,
+      "proposer_tokens_in": 825,
+      "proposer_tokens_out": 2389,
+      "round": 1,
+      "wall_seconds": 33.87804270815104
+    },
+    {
+      "critic_invocations": 6,
+      "critic_seconds": 0.2164019187912345,
+      "embedding_calls": 0,
+      "gpu_seconds": 0.0,
+      "proposer_tokens_in": 1537,
+      "proposer_tokens_out": 2431,
+      "round": 2,
+      "wall_seconds": 32.35213145799935
+    }
+  ],
+  "seed": 0,
+  "surviving": 6,
+  "topic": "elementary number theory and combinatorics (Python-verifiable)",
+  "total_conjectures": 18,
+  "wall_seconds": 100.463428,
+  "_provenance": {
+    "run": "code-20260531-213056",
+    "note": "Headline metrics from the REAL sandboxed CodeExecCritic demo (\u00a76.1). The mock critic is never used in any reported number (\u00a73). The Lean headline track ran but produced 0 certified-novel survivors at this budget (see ROADMAP/README) \u2014 the headline rests on the code critic."
+  }
+}
