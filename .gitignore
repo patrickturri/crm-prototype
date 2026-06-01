@@ -1,0 +1,21 @@
+# Secrets — NEVER commit
+.env
+.env.*
+*.key
+
+# Results are reproducible artifacts, not source (§4: results/ gitignored).
+results/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.pytest_cache/
+.venv/
+venv/
+
+# OS / editor
+.DS_Store

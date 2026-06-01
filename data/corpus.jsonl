@@ -1,0 +1,3 @@
+{"name": "Nat.coprime_succ_self", "statement": "forall (n : Nat), Nat.Coprime n (n + 1)"}
+{"name": "Nat.gcd_self", "statement": "forall (n : Nat), Nat.gcd n n = n"}
+{"name": "Nat.Prime.two_le", "statement": "forall {p : Nat}, Nat.Prime p -> 2 <= p"}

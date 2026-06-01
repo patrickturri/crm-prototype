@@ -1,0 +1,26 @@
+# Smoke config (§11): mock critic, 2 rounds, k=4, instant.
+# Validates the loop architecture (ledger, accounting, conditioning, harness)
+# in <60s with zero heavy deps. NOT used in any reported result (§3, §6.0).
+name: smoke
+topic: "elementary number theory"
+rounds: 2
+k: 4
+seed: 0
+mode: genealogy          # "genealogy" | "control"
+critic: mock
+proof_budget_s: 5.0
+
+proposer:
+  kind: stub             # deterministic offline proposer
+
+# Significance weights (default 0.3/0.3/0.4) and thresholds (§5.2).
+weights:
+  novelty: 0.3
+  breadth: 0.3
+  hardness: 0.4
+tau: 0.25
+delta: 0.35
+perturbations: 8
+embedder: sentence-transformers/all-MiniLM-L6-v2
+
+results_dir: results
