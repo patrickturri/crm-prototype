@@ -21,5 +21,19 @@ dist/
 .venv/
 venv/
 
+# Caches / model weights (never committed; regenerated/downloaded on demand).
+.cache/
+.mypy_cache/
+.ruff_cache/
+*.ckpt
+*.safetensors
+*.pt
+*.gguf
+models/
+hf_cache/
+
+# Phase 6 IP mode (results-only): the moat lives here when relocated (§18 6.7).
+PRIVATE/
+
 # OS / editor
 .DS_Store

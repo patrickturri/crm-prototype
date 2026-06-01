@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>CRM — replay of a real run</title>
+<style>
+  :root{
+    --accent:#1f6feb;            /* single accent colour */
+    --bg:#0d1117; --panel:#161b22; --panel2:#1c2230;
+    --ink:#e6edf3; --muted:#8b949e; --line:#30363d;
+    /* reason_class colours (derived from one accent + standard sem. hues) */
+    --proved:#2ea043; --false:#f85149; --unproven:#d29922;
+    --trivial:#8957e5; --duplicate:#6e7681; --illformed:#bb8009; --timeout:#9e6a03;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;}
+  a{color:var(--accent)}
+  header{padding:22px 28px 14px;border-bottom:1px solid var(--line);
+         background:linear-gradient(180deg,#11161f,#0d1117);}
+  h1{margin:0 0 4px;font-size:20px;letter-spacing:.2px}
+  .sub{color:var(--muted);font-size:13px;margin-bottom:14px}
+  .kpis{display:flex;gap:14px;flex-wrap:wrap}
+  .kpi{background:var(--panel);border:1px solid var(--line);border-radius:10px;
+       padding:10px 14px;min-width:120px}
+  .kpi .v{font-size:22px;font-weight:700;color:var(--accent)}
+  .kpi .l{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px}
+  .controls{display:flex;gap:18px;align-items:center;flex-wrap:wrap;
+            padding:14px 28px;border-bottom:1px solid var(--line);background:var(--panel)}
+  .controls label{font-size:13px;color:var(--muted)}
+  .filters{display:flex;gap:8px}
+  .filters button{background:var(--panel2);color:var(--ink);border:1px solid var(--line);
+     border-radius:20px;padding:6px 14px;font-size:13px;cursor:pointer}
+  .filters button.on{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+  .scrub{flex:1;min-width:220px;display:flex;gap:10px;align-items:center}
+  input[type=range]{flex:1;accent-color:var(--accent)}
+  .roundlbl{font-variant-numeric:tabular-nums;font-weight:600;white-space:nowrap}
+  main{padding:22px 28px;max-width:1100px;margin:0 auto}
+  .round{margin-bottom:30px}
+  .round h2{font-size:14px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;
+            border-bottom:1px solid var(--line);padding-bottom:6px;margin:0 0 16px}
+  .card{background:var(--panel);border:1px solid var(--line);border-left:5px solid var(--duplicate);
+        border-radius:10px;padding:14px 16px;margin-bottom:14px}
+  .card.survivor{box-shadow:0 0 0 1px rgba(46,160,67,.25)}
+  .card .top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+  .tag{font-size:10px;font-weight:700;letter-spacing:.8px;padding:3px 8px;border-radius:6px;
+       text-transform:uppercase;white-space:nowrap;color:#fff}
+  .card .id{font:12px var(--mono);color:var(--muted)}
+  .gloss{color:var(--ink);margin:8px 0 6px;font-size:14px}
+  .stmt{font:12.5px var(--mono);background:#0b0f16;border:1px solid var(--line);
+        border-radius:6px;padding:8px 10px;white-space:pre-wrap;word-break:break-word;color:#cdd9e5}
+  .detail{font-size:12.5px;color:var(--muted);margin-top:8px}
+  .detail b{color:var(--false)}
+  .badge{display:inline-block;background:var(--proved);color:#fff;font-size:10px;font-weight:700;
+         padding:3px 8px;border-radius:6px;letter-spacing:.6px;margin-left:8px}
+  .bars{margin-top:12px;display:grid;grid-template-columns:auto 1fr auto;gap:5px 10px;align-items:center;
+        max-width:380px}
+  .bars .name{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+  .track{height:8px;background:#0b0f16;border-radius:5px;overflow:hidden}
+  .fill{height:100%;background:var(--accent);border-radius:5px}
+  .bars .val{font:11px var(--mono);color:var(--ink);text-align:right}
+  .score{margin-top:8px;font-size:12px;color:var(--muted)}
+  .score b{color:var(--ink)}
+  details.proof{margin-top:10px}
+  details.proof summary{cursor:pointer;font-size:12px;color:var(--accent)}
+  details.proof pre{font:11.5px var(--mono);background:#0b0f16;border:1px solid var(--line);
+        border-radius:6px;padding:10px;overflow-x:auto;color:#cdd9e5;margin:8px 0 0}
+  .siblings{margin-top:12px;border-top:1px dashed var(--line);padding-top:10px}
+  .siblings .h{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin-bottom:6px}
+  .sib{font-size:12px;color:var(--muted);padding:4px 0;border-left:3px solid var(--false);
+       padding-left:10px;margin-bottom:5px}
+  .sib .sc{font-weight:700;color:#fff;font-size:9px;padding:2px 6px;border-radius:4px;margin-right:6px}
+  .sib code{font:11px var(--mono);color:#cdd9e5}
+  .empty{color:var(--muted);font-size:13px;padding:20px}
+  footer{padding:18px 28px;color:var(--muted);font-size:12px;border-top:1px solid var(--line)}
+  /* reason_class accents */
+  .c-PROVED{border-left-color:var(--proved)} .t-PROVED{background:var(--proved)}
+  .c-FALSE{border-left-color:var(--false)} .t-FALSE{background:var(--false)}
+  .c-UNPROVEN_BUDGET{border-left-color:var(--unproven)} .t-UNPROVEN_BUDGET{background:var(--unproven)}
+  .c-TRIVIAL{border-left-color:var(--trivial)} .t-TRIVIAL{background:var(--trivial)}
+  .c-DUPLICATE{border-left-color:var(--duplicate)} .t-DUPLICATE{background:var(--duplicate)}
+  .c-ILLFORMED{border-left-color:var(--illformed)} .t-ILLFORMED{background:var(--illformed)}
+  .c-TIMEOUT{border-left-color:var(--timeout)} .t-TIMEOUT{background:var(--timeout)}
+</style>
+</head>
+<body>
+<header>
+  <h1>Critical-Rationalist Machine — replay of a <em>real</em> run</h1>
+  <div class="sub">Offline replay of a committed, sanitized <code>run.jsonl</code> (a real
+    <code>ledger.jsonl</code> from the best code-exec critic run). No API, no Lean, no network — reads only the file next to it.</div>
+  <div class="kpis" id="kpis"></div>
+</header>
+
+<div class="controls">
+  <div class="filters" id="filters">
+    <button data-f="all" class="on">all</button>
+    <button data-f="survivors">survivors only</button>
+    <button data-f="certified">certified-novel only</button>
+  </div>
+  <div class="scrub">
+    <label>round</label>
+    <input type="range" id="scrub" min="0" max="0" value="0" step="1" />
+    <span class="roundlbl" id="roundlbl">all rounds</span>
+  </div>
+</div>
+
+<main id="main"><div class="empty">Loading run.jsonl…</div></main>
+<footer id="footer"></footer>
+
+<script>
+"use strict";
+// ---- effective reason class (TRIVIAL overrides PROVED when is_trivial) ----
+function effClass(row){
+  const sig = row.significance;
+  if (row.crit && row.crit.valid && sig && sig.is_trivial) return "TRIVIAL";
+  return (row.crit && row.crit.reason_class) || "ILLFORMED";
+}
+function isSurvivor(row){ return !!row.surviving; }
+function isCertified(row){ return !!row.certified_novel; }
+function esc(s){ return String(s==null?"":s)
+  .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+let ROWS = [];
+let MAXROUND = 0;
+let state = { filter:"all", round:-1 /* -1 = all rounds */ };
+
+async function load(){
+  let text;
+  try{
+    const res = await fetch("run.jsonl", {cache:"no-store"});
+    text = await res.text();
+  }catch(e){
+    document.getElementById("main").innerHTML =
+      '<div class="empty">Could not fetch run.jsonl. Open this file via a local server '+
+      '(<code>python3 -m http.server</code>) or it will still work when double-clicked in most browsers.</div>';
+    return;
+  }
+  ROWS = text.split("\n").filter(l=>l.trim()).map(l=>JSON.parse(l));
+  MAXROUND = ROWS.reduce((m,r)=>Math.max(m, r.round||0), 0);
+  const scrub = document.getElementById("scrub");
+  scrub.max = MAXROUND + 1;          // last position = "all rounds"
+  scrub.value = MAXROUND + 1;
+  state.round = -1;
+  renderKpis(); wireControls(); render();
+}
+
+function renderKpis(){
+  const certified = ROWS.filter(isCertified).length;
+  const survivors = ROWS.filter(isSurvivor).length;
+  const total = ROWS.length;
+  const rounds = MAXROUND + 1;
+  // per-compute KPIs are reported in metrics.json / README; here we surface the
+  // counts that are directly derivable from the committed ledger (no fabrication).
+  const kpis = [
+    ["certified-novel", certified],
+    ["survivors", survivors],
+    ["conjectures", total],
+    ["rounds", rounds],
+  ];
+  document.getElementById("kpis").innerHTML = kpis.map(([l,v])=>
+    `<div class="kpi"><div class="v">${v}</div><div class="l">${l}</div></div>`).join("");
+}
+
+function wireControls(){
+  document.querySelectorAll("#filters button").forEach(b=>{
+    b.onclick = ()=>{
+      document.querySelectorAll("#filters button").forEach(x=>x.classList.remove("on"));
+      b.classList.add("on");
+      state.filter = b.dataset.f; render();
+    };
+  });
+  const scrub = document.getElementById("scrub");
+  scrub.oninput = ()=>{
+    const v = parseInt(scrub.value,10);
+    state.round = (v > MAXROUND) ? -1 : v;
+    document.getElementById("roundlbl").textContent =
+      state.round < 0 ? "all rounds" : ("round " + (state.round+1) + " / " + (MAXROUND+1));
+    render();
+  };
+}
+
+function passesFilter(row){
+  if (state.filter === "survivors") return isSurvivor(row);
+  if (state.filter === "certified") return isCertified(row);
+  return true;
+}
+
+function bars(sig){
+  if (!sig) return "";
+  const mk = (name, v)=>{
+    const pct = Math.round((v||0)*100);
+    return `<div class="name">${name}</div>`+
+           `<div class="track"><div class="fill" style="width:${pct}%"></div></div>`+
+           `<div class="val">${(v||0).toFixed(2)}</div>`;
+  };
+  return `<div class="bars">${mk("novelty",sig.novelty)}${mk("breadth",sig.breadth)}${mk("hardness",sig.hardness)}</div>`+
+         `<div class="score">content score <b>${(sig.score||0).toFixed(2)}</b>`+
+         (sig.is_trivial?` · <span style="color:var(--trivial)">flagged trivial (score forced to 0)</span>`:``)+`</div>`;
+}
+
+function proofBlock(row){
+  const a = row.artifact;
+  if (!a) return "";
+  const parts = [];
+  if (a.reference_impl) parts.push("# reference implementation (run in the sandbox)\n"+a.reference_impl);
+  if (a.tests) parts.push("\n# own tests (all passed) + adversarial tests\n"+a.tests);
+  if (a.property) parts.push("\n# property checked\n"+a.property);
+  if (a.lean_statement) parts.push("\n-- Lean\n"+a.lean_statement);
+  if (!parts.length) return "";
+  return `<details class="proof"><summary>show verifiable proof / tests</summary>`+
+         `<pre>${esc(parts.join("\n"))}</pre></details>`;
+}
+
+// failed siblings: same round, not surviving, plus any whose id is a parent.
+function siblingsOf(row){
+  const parentIds = new Set(row.parent_ids||[]);
+  return ROWS.filter(o =>
+    o.id !== row.id && !isSurvivor(o) &&
+    (o.round === row.round || parentIds.has(o.id))
+  );
+}
+
+function siblingBlock(row){
+  if (!isSurvivor(row)) return "";
+  const sibs = siblingsOf(row);
+  if (!sibs.length) return "";
+  const items = sibs.map(s=>{
+    const cls = effClass(s);
+    const why = (s.crit && s.crit.detail) ? s.crit.detail : cls;
+    return `<div class="sib"><span class="sc t-${cls}">${cls}</span>`+
+           `<code>${esc((s.statement||"").slice(0,120))}</code><br>`+
+           `<span style="opacity:.8">${esc(why)}</span></div>`;
+  }).join("");
+  return `<div class="siblings"><div class="h">failed siblings from the genealogy (why these didn't survive)</div>${items}</div>`;
+}
+
+function card(row){
+  const cls = effClass(row);
+  const surv = isSurvivor(row);
+  const cert = isCertified(row);
+  const detail = (row.crit && row.crit.detail) ? row.crit.detail : "";
+  const method = (row.crit && row.crit.proof_method) ? ` · ${esc(row.crit.proof_method)}` : "";
+  const cs = (row.crit && typeof row.crit.critic_seconds==="number")
+             ? ` · ${row.crit.critic_seconds.toFixed(2)}s` : "";
+  return `<div class="card c-${cls}${surv?' survivor':''}">
+    <div class="top">
+      <div>
+        <span class="id">${esc(row.id)}</span>
+        ${cert?'<span class="badge">CERTIFIED-NOVEL</span>':''}
+      </div>
+      <span class="tag t-${cls}">${cls}</span>
+    </div>
+    <div class="gloss">${esc(row.nl_gloss||"")}</div>
+    <div class="stmt">${esc(row.statement||"")}</div>
+    ${detail?`<div class="detail"><b>refutation:</b> ${esc(detail)}${method}${cs}</div>`:''}
+    ${bars(row.significance)}
+    ${proofBlock(row)}
+    ${siblingBlock(row)}
+  </div>`;
+}
+
+function render(){
+  const main = document.getElementById("main");
+  const rounds = [];
+  for (let r=0; r<=MAXROUND; r++){
+    if (state.round>=0 && r!==state.round) continue;
+    rounds.push(r);
+  }
+  let html = "";
+  let shown = 0;
+  for (const r of rounds){
+    const rows = ROWS.filter(x => x.round===r && passesFilter(x));
+    if (!rows.length) continue;
+    shown += rows.length;
+    html += `<section class="round"><h2>Round ${r+1}</h2>${rows.map(card).join("")}</section>`;
+  }
+  main.innerHTML = shown ? html :
+    `<div class="empty">No conjectures match this filter${state.round>=0?" in this round":""}.</div>`;
+
+  document.getElementById("footer").innerHTML =
+    `Replaying <b>${ROWS.length}</b> real conjectures across <b>${MAXROUND+1}</b> rounds from a sanitized `+
+    `<code>run.jsonl</code> (a real <code>ledger.jsonl</code>). Cards are coloured by effective reason class `+
+    `(PROVED / FALSE / UNPROVEN_BUDGET / TRIVIAL / DUPLICATE / ILLFORMED). `+
+    `Significance bars and the certified-novel badge come straight from the run — nothing is hand-authored.`;
+}
+
+load();
+</script>
+</body>
+</html>

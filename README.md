@@ -28,7 +28,10 @@ topic, k, rounds, critic, budgets, seed list — differing in exactly one variab
 - **Genealogy ablation (H2).** Treatment (`mode=genealogy`, the proposer sees
   *why* past conjectures died and which survivors to build on) vs control
   (`mode=control`, prior statements listed for dedup only, no reasons).
-  ![Genealogy ablation](results/plots/ablation_genealogy.png)
+  ![Genealogy ablation](docs/assets/ablation_genealogy.png)
+  *Reading: at this tiny budget the treatment trails the control on the headline
+  certified-novel count (6.0±2.2 vs 7.0±0.8) — reported honestly; the mechanism,
+  not the count, is the claim.*
   Over 3 seeds, treatment reached 6.00±2.16 cumulative certified-novel survivors
   vs 7.00±0.82 for control. **Reported honestly:** at this tiny budget the
   treatment does *not* lead on the headline count, but it pushes the proposer
@@ -38,10 +41,10 @@ topic, k, rounds, critic, budgets, seed list — differing in exactly one variab
 
 - **Significance ablation (reward-hack guard).** Trivial/vacuous "survivors" rate,
   significance critic ON vs OFF, judged by an *independent* automation probe.
-  ![Significance ablation](results/plots/ablation_significance.png)
-  Turning the critic ON drops the trivial-survivor rate from 0.34±0.29 to
-  0.00±0.00 over 3 seeds — the hard-to-vary guard catches the reward-hack that
-  "it compiled / it passed" optimisers fall for.
+  ![Significance ablation](docs/assets/ablation_significance.png)
+  *Reading: turning the critic ON drops the trivial-survivor rate from 0.34±0.29
+  to 0.00±0.00 over 3 seeds — the hard-to-vary guard catches the reward-hack that
+  "it compiled / it passed" optimisers fall for.*
 
 ## Headline KPI (the "certified-novelty-per-compute" benchmark)
 
@@ -55,7 +58,9 @@ From the **real** sandboxed code-exec critic demo (`metrics.json`):
 
 The top survivors — each with its verifiable proof/tests, significance breakdown,
 and the **failed genealogy siblings that explain why they died** — are in
-[`SURVIVORS.md`](SURVIVORS.md). None is hand-authored; all came from the loop.
+[`docs/SURVIVORS.md`](docs/SURVIVORS.md). None is hand-authored; all came from the
+loop. The full run is also browsable in the offline
+**[replay viewer](docs/replay/index.html)** (see *Shareable links* below).
 
 ## One-command reproduction
 
@@ -96,6 +101,62 @@ proved did not survive the significance critic). **The headline therefore rests 
 the code-exec critic**, exactly as the build plan permits as the floor (§13/§14).
 Lean is the path to the formal-novelty headline; closing it needs more proof
 budget and proof-search retries (see [`ROADMAP.md`](ROADMAP.md)).
+
+## Shareable links (offline replay + GitHub Pages)
+
+The whole run is browsable with **zero setup** in a single self-contained,
+vanilla-JS page — no build step, no API, no Lean, no network:
+
+- **[`docs/replay/index.html`](docs/replay/index.html)** — double-click it (or
+  serve `docs/`) to replay the real run: a scrubbable round-by-round timeline,
+  conjecture cards coloured by `reason_class` (PROVED / FALSE / UNPROVEN_BUDGET /
+  TRIVIAL / DUPLICATE), each showing the statement, gloss, refutation detail, the
+  three significance mini-bars (novelty / breadth / hardness) + a certified-novel
+  badge, and — under each survivor — the **failed siblings** the genealogy
+  explains. Filter toggles: all / survivors only / certified-novel only.
+  It reads **only** the committed, sanitized [`docs/replay/run.jsonl`](docs/replay/run.jsonl)
+  (a real `ledger.jsonl` with keys/paths stripped).
+
+The rendered report and survivors live under `docs/` too:
+[`docs/REPORT.md`](docs/REPORT.md) · [`docs/SURVIVORS.md`](docs/SURVIVORS.md) ·
+plots in `docs/assets/`.
+
+**GitHub Pages (one setting to flip).** The repo is already structured to serve
+`docs/`. After pushing, in the repo **Settings → Pages**, choose
+**Deploy from a branch → Branch: `main`, Folder: `/docs`**, Save. The replay
+viewer is then live at:
+
+```
+https://<user>.github.io/<repo>/replay/
+```
+
+`make publish` regenerates the plots, refreshes the curated `docs/` assets, runs a
+**secret-scan over tracked files** (fails loudly on any leaked API key, `.env`
+assignment, or host path), then **prints** (does not execute) the
+`git remote add … && git push`
+and the Pages-toggle steps. `make record` captures `make demo` to `docs/demo.cast`
+with `asciinema` if installed (else prints a screen-recorder / Loom note).
+
+## IP mode (what the public repo tracks)
+
+`scripts/prep_public.sh --mode {results-only|full}` chooses how much of the moat
+ships publicly:
+
+- **`results-only`** (default) — track `README.md`, all of `docs/` (report,
+  survivors, replay, plots), and the loop/critic **interfaces**, but keep the two
+  load-bearing critic sources — the hard-to-vary `crm/significance.py` (§5.2) and
+  the reasoned `crm/genealogy.py` (§5.1) — out of the public tree by relocating
+  them into a gitignored `PRIVATE/` (shared with reviewers separately). Protects
+  the moat during the competition while still giving a public, rendered,
+  interactive link.
+- **`full`** — track everything, including the significance + genealogy sources.
+
+Add `--dry-run` to print exactly what *would* be excluded/moved without touching
+the working tree:
+
+```bash
+scripts/prep_public.sh --mode results-only --dry-run   # non-destructive preview
+```
 
 ## How this differs from RLVR / AlphaProof / Absolute Zero
 
