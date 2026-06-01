@@ -18,6 +18,11 @@ failed** (those systems keep only pass/fail), and we score conjectures by
 **explanatory content / hard-to-vary-ness** (those systems optimise mere
 validity or solvability).
 
+> **Evaluating this for SPRIND Next Frontier AI?** See
+> [`NEXT_FRONTIER_FIT.md`](NEXT_FRONTIER_FIT.md) — an honest, point-by-point map to
+> the jury's four criteria (Approach · Implementation · Team · Economic Viability),
+> including the open gaps. Everything in it is checkable against the artifact below.
+
 ## The contribution is the ablations (not the loop)
 
 The loop alone is **not** the point. The deliverable is the two apples-to-apples
