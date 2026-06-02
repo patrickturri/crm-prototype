@@ -49,12 +49,15 @@ topic, k, rounds, critic, budgets, seed list — differing in exactly one variab
   6.88±2.57), the gap is not significant (Welch p=0.126, MWU p=0.134), and the
   trivial rate is a near-tie (treatment 0.271 vs control 0.258 — i.e. treatment
   is **not** lower).* Scaling from the original n=3 run did **not** rescue H2 on
-  this recall-heavy domain; per the review we **demote the claim**. The one place
-  the sign flips positive is a freshly-defined sequence the model cannot recall
-  (genealogy +1.33 vs control), but that is also underpowered at n=3 — see
-  [`docs/FINDINGS.md`](docs/FINDINGS.md) and
-  [`docs/findings/genealogy_scale.md`](docs/findings/genealogy_scale.md),
-  [`docs/findings/hard_domain.md`](docs/findings/hard_domain.md).
+  this recall-heavy domain; per the review we **demote the claim**. A
+  freshly-defined sequence the model cannot recall briefly *looked* like the one
+  place the sign flips positive (genealogy +1.33 vs control at n=3), but
+  **scaling that to n=10 erased it**: genealogy 1.90±0.70 vs control 2.00±0.63,
+  delta **−0.10** (Welch p=0.75, MWU p=0.77). So H2 is unsupported on **both**
+  the easy and the hard domain — the n=3 flip was noise. See
+  [`docs/FINDINGS.md`](docs/FINDINGS.md),
+  [`docs/findings/genealogy_scale.md`](docs/findings/genealogy_scale.md), and
+  [`docs/findings/hard_domain_scaled.md`](docs/findings/hard_domain_scaled.md).
 
 - **Significance ablation (reward-hack guard).** Trivial/vacuous "survivors" rate,
   significance critic ON vs OFF, judged by a **genuinely independent** triviality
@@ -98,18 +101,24 @@ loop. The full run is also browsable in the offline
 
 ## Findings (updated review pass)
 
-Six follow-up experiments were run to stress-test the claims above. **Every
-number is reproduced from a committed result file; null/unfavorable results are
-reported as such.** Full account: [`docs/FINDINGS.md`](docs/FINDINGS.md).
+Follow-up experiments were run to stress-test the claims above; two were then
+**re-run at higher power** to settle them (hardness with 8-vs-11 candidates;
+the hard domain at n=10). **Every number is reproduced from a committed result
+file; null/unfavorable results are reported as such.** Full account:
+[`docs/FINDINGS.md`](docs/FINDINGS.md). One code-review note: the rich
+perturbation operator defaults to `"literal"` in production configs (only
+`configs/hard_domain.yaml` sets `rich`), so the headline path still uses the old
+operator — the rich/`rich_false` work is validated but not yet wired into the
+live `is_trivial` gate.
 
 | # | finding | headline (real numbers) | doc |
 | --- | --- | --- | --- |
 | 7 | **Intra-run dedup** | 7 certified survivors collapse to **4** distinct clusters (3 are near-dups) at delta=0.35; gate now blocks dups at admission | [dedup_collapse](docs/findings/dedup_collapse.md) |
-| 6 | **Hardness perturbation** | literal +-1 rates the vacuous constant-zero at hardness **1.000**; rich strategy gives **0.778** (right direction) but separation is weak (gap 0.091 < 0.10) | [hardness_distribution](docs/findings/hardness_distribution.md) |
+| 6 | **Hardness perturbation** (settled, 8 vs 11) | richer *operator* alone fails (rich_any gap +0.09, ILLFORMED-inflated); the **metric** fix works — `rich_false` (count only FALSE counterexamples) separates contentful 0.74 vs trivial 0.55 (p=0.003), but only modestly | [hardness_scaled](docs/findings/hardness_scaled.md) |
 | 3 | **Genealogy at scale (H2)** | n=8 API: genealogy **4.88±1.96** vs control **6.88±2.57**, **−2.00**, not significant (p=0.126). H2 not established → **demoted** | [genealogy_scale](docs/findings/genealogy_scale.md) |
 | 5 | **Independent triviality oracle** | non-tautological oracle: guard ON **0.15±0.07** vs OFF **0.27±0.08** (was 0.00 vs 0.34, now retired) | REPORT §9.2 |
 | 8 | **Best-of-N baseline** | baseline keeps **1.7x more** certified/ktok (17.85 vs 10.60); full system is a cost/quality trade-off, not a per-token win | [baseline](docs/findings/baseline.md) |
-| 9 | **Hard domain (discovery)** | on a non-recallable sequence: **10/10** survivors genuinely discovered; genealogy delta flips to **+1.33** (vs −1.00 easy), but underpowered at n=3 | [hard_domain](docs/findings/hard_domain.md) |
+| 9 | **Hard domain (discovery), settled at n=10** | on a non-recallable sequence the n=3 genealogy flip (+1.33) **vanished**: genealogy **1.90±0.70** vs control **2.00±0.63** (−0.10, p=0.75). best-of-N wins (+1.10, p=0.003). H2 unsupported on both domains | [hard_domain_scaled](docs/findings/hard_domain_scaled.md) |
 
 ## One-command reproduction
 

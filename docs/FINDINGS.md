@@ -48,23 +48,45 @@ admission.
 | collapsed (near-dups) | 3 |
 | delta | 0.35 |
 
-## 2. Hardness: literal vs rich perturbation — finding #6
+## 2. Hardness: literal vs rich perturbation — finding #6 (SETTLED at scale)
 
-[`docs/findings/hardness_distribution.md`](findings/hardness_distribution.md) ·
-sources: `results/findings/hardness_distribution.json`,
-`experiments/run_hardness_distribution.py`
+[`docs/findings/hardness_scaled.md`](findings/hardness_scaled.md) ·
+sources: `results/findings/hardness_scaled.json`,
+`experiments/run_hardness_scaled.py`
+(first pass with n=2 trivials: [`hardness_distribution.md`](findings/hardness_distribution.md))
 
-Literal +-1 integer-literal mutation measures numeric brittleness, not depth: it
-rates the **vacuous constant-zero** task at hardness **1.000** (as hard as a
-contentful identity). The new **rich** strategy (operator/boundary/operand
-rewrites) moves it in the correct direction (constant-zero -> **0.778**). But the
-overall separation is weak: rich gap (contentful minus trivial) = **0.091**,
-just below the 0.10 "separates" threshold, and the trivial pool is only n=2.
-Mean hardness stays high under both strategies (literal **0.937**, rich
-**0.947** over 28 candidates). The review's "0.88 for ALL survivors" is not
-exactly borne out (survivor literal mean 0.915, std 0.107), but the qualitative
-defect — literal can't tell trivial from contentful — is confirmed. Rich is
-qualitatively better; the quantitative gain is modest.
+The first pass had only **2 trivial candidates**, so separation could not be
+tested. The scaled experiment uses **8 contentful vs 11 trivial** candidates
+(all with fair own-tests — without them every perturbed neighbour is ILLFORMED,
+which confounds the signal) and P=32 perturbations, with a one-sided
+Mann-Whitney test. The decisive insight: **the richer operator alone does not
+fix hardness — the scoring change does.**
+
+| hardness variant | contentful mean | trivial mean | gap | MWU p (1-sided) | separates? |
+|---|---|---|---|---|---|
+| `literal_any` (old: ±1 literals, broken = invalid) | 0.96 | 0.72 | +0.24 | 0.52 | **no** |
+| `rich_any` (rich operators, broken = invalid) | 0.99 | 0.90 | +0.09 | — | **no** |
+| `rich_false` (rich, broken = FALSE counterexample only) | 0.74 | 0.55 | **+0.19** | **0.003** | **yes** |
+
+- `literal_any`: high but bimodal on trivials (some 0.0, some 1.0) → no
+  separation (p=0.52). Confirms #6.
+- `rich_any`: the operator swaps produce **ILLFORMED** (syntactically broken)
+  neighbours that count as "broken", inflating *every* candidate toward 1.0 →
+  separation actually **worsens**. So a richer operator is not the fix.
+- `rich_false`: counting only neighbours the critic refutes with a genuine
+  **FALSE counterexample** (excluding ILLFORMED/TIMEOUT) yields a **significant**
+  separation (0.74 vs 0.55, p=0.003; vs over-permissive "family A" trivials
+  p=0.019). **The fix that matters is the metric (FALSE-only), not the operator.**
+
+Even so the separation is **modest, not clean**: degenerate-but-pinned trivials
+(constant/identity impls whose property pins the constant) still score
+rich_false 0.33–0.71, because their own-tests pin them — hardness cannot flag
+that family. **Conclusion: hardness is at best a weak, partial triviality signal;
+the automation-closeable probe (finding #5) remains the real guard, and the
+0.4 hardness weight in the significance score is hard to justify on this
+evidence.** Note: production configs still default `perturb_strategy="literal"`
+(only `configs/hard_domain.yaml` sets `rich`); the `rich_false` metric is not yet
+wired into the live `is_trivial` gate — that remains future work.
 
 ## 3. Genealogy ablation at scale (H2) — finding #3
 
@@ -130,28 +152,40 @@ independently-measured triviality (0.240 -> 0.151), which **vanishes** on the
 single API seed (0.0 in both arms). Frame the loop as a **cost/quality
 trade-off**, not a per-token win.
 
-## 6. Hard domain — discovery, not recall — finding #9
+## 6. Hard domain — discovery, not recall — finding #9 (SETTLED at n=10)
 
-[`docs/findings/hard_domain.md`](findings/hard_domain.md) ·
-sources: `results/findings/hard_domain/summary.json`,
-`results/findings/hard_domain/hard_domain.csv`, per-arm `ledger.jsonl`
+[`docs/findings/hard_domain_scaled.md`](findings/hard_domain_scaled.md) ·
+sources: `results/findings/hard_domain_n10/summary.json`,
+`results/findings/hard_domain_n10/hard_domain.csv`, per-arm `ledger.jsonl`
+(first pass n=3: [`hard_domain.md`](findings/hard_domain.md))
 
 On a freshly-defined sequence `g(n)=3g(n-1)-g(n-2)+(n mod 3)` the model cannot
-look up, the system produces **10/10 genuinely discovered** (non-recalled,
-non-restatement) certified survivors. The genealogy-vs-control delta **flips
-sign** between domains:
+look up, survivors are genuinely *discovered* properties (not recalled textbook
+facts) — so this is a fair test of the mechanism. The n=3 first pass showed the
+genealogy-vs-control delta **flip sign to +1.33**, which was suggestive but
+underpowered. **Scaled to n=10, the flip disappears — it was noise:**
 
-| domain | genealogy | control | delta |
+| arm | certified-novel (mean ± std, n=10) | cert / kilo-token | indep-trivial rate |
 |---|---|---|---|
-| easy (recall) | 6.00 +/- 2.16 | 7.00 +/- 0.82 | **-1.00** (no help) |
-| hard (discovery) | 2.33 +/- 0.47 | 1.00 +/- 0.82 | **+1.33** (helps) |
+| genealogy | **1.90 ± 0.70** | 0.240 | **0.00** (all seeds) |
+| control | **2.00 ± 0.63** | 0.271 | ~0.125 (noisy) |
+| best_of_N | **3.00 ± 0.63** | **0.927** | — |
 
-Note: the easy-domain row here is the original **n=3** ablation
-(`results/ablation_genealogy.csv` was since rerun at n=8 — see section 3, where
-the delta is -2.00; both are unfavorable to H2 on the easy domain). The hard-domain
-flip is the thesis-relevant signal, but it is **underpowered (n=3, overlapping
-error bars)** — suggestive, not significant. best-of-N still certified the most
-(3.67) and dominates per-token (4.7x), so finding #8 holds here too.
+| comparison | diff | Welch p | Mann-Whitney p |
+|---|---|---|---|
+| genealogy − control | **−0.10** | **0.754** | **0.769** |
+| best_of_N − genealogy | **+1.10** | **0.003** | **0.006** |
+
+- **H2 is not supported even here.** Genealogy − control = **−0.10** (p=0.75) —
+  indistinguishable from zero. With the n=8 easy-domain result (−2.00, p=0.13,
+  section 3), the reasoned-genealogy mechanism shows **no certified-novel
+  advantage on either domain**. The +1.33 from n=3 was sampling noise.
+- **Best-of-N wins decisively here too**: +1.10 certified (p=0.003) and **3.9×
+  per-token** (0.927 vs 0.240). Finding #8 holds.
+- The full system's only measurable edge is **gate-driven triviality
+  suppression** (indep-trivial 0.00 vs control ~0.125 across all 10 seeds) — that
+  is the significance gate (finding #5), not the genealogy conditioning, since
+  both arms run the gate and differ only in conditioning.
 
 ---
 
