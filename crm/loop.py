@@ -80,6 +80,10 @@ class CRMLoop:
         # from the conjecture the critic graded.
         artifacts: dict[str, dict] = {}
 
+        # Running set of statements already certified-novel THIS run, so a later
+        # near-duplicate of an earlier survivor is blocked (review finding #7).
+        accepted: list[str] = []
+
         for r in range(cfg.rounds):
             ctx = build_conditioning_context(
                 self.ledger, cfg.topic, cfg.k, mode=cfg.mode
@@ -103,8 +107,14 @@ class CRMLoop:
                     entry.significance = sig
                     entry.surviving = not sig.is_trivial
                     entry.certified_novel = entry.surviving and certify_novel(
-                        c.statement, sig, self.corpus, critic=self.critic
+                        c.statement,
+                        sig,
+                        self.corpus,
+                        critic=self.critic,
+                        accepted_survivors=accepted,
                     )
+                    if entry.certified_novel:
+                        accepted.append(c.statement)
                 self.ledger.add(entry)
 
                 ex = dict(c.extra or {})

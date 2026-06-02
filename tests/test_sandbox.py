@@ -190,3 +190,93 @@ def test_offline_proposer_produces_runnable_tasks():
     batch = prop.propose("ctx", k=8, seed=0)
     results = [critic.check(c) for c in batch]
     assert any(r.valid for r in results), "no offline task survived the critic"
+
+
+# ---------------------------------------------------------------------------
+# 6. perturb() mutation strategies (review finding #6 — A/B-able hardness).
+# ---------------------------------------------------------------------------
+
+def _sum_first_n_odds_conjecture() -> Conjecture:
+    return Conjecture(
+        id="pc0",
+        statement="f(n) = sum of first n odd numbers; equals n*n",
+        extra={
+            "reference_impl": "def f(n):\n    return sum(2*i+1 for i in range(n))",
+            "tests": "assert f(1) == 1\nassert f(4) == 16",
+            "property": "lambda n: f(n) == n*n",
+            "domain": "[0, 100]",
+        },
+    )
+
+
+def _neighbour_keys(neighbours) -> set[tuple[str, str]]:
+    return {
+        (n.extra.get("reference_impl", ""), n.extra.get("property", ""))
+        for n in neighbours
+    }
+
+
+def test_perturb_literal_is_byte_identical_to_default():
+    """strategy='literal' MUST reproduce the original (default) behaviour
+    byte-for-byte so the two strategies can be A/B'd against the same survivors.
+    """
+    critic = CodeExecCritic(timeout_s=5.0)
+    c = _sum_first_n_odds_conjecture()
+    # default arg == explicit "literal"
+    default = critic.perturb(c, p=999, seed=0)
+    literal = critic.perturb(c, p=999, seed=0, strategy="literal")
+    assert _neighbour_keys(default) == _neighbour_keys(literal)
+    # every literal neighbour differs from the base only in an integer literal
+    base_impl = c.extra["reference_impl"]
+    base_prop = c.extra["property"]
+    for n in literal:
+        ni = n.extra.get("reference_impl", "")
+        np = n.extra.get("property", "")
+        # exactly one of the two fields changed; the other is byte-identical
+        assert (ni == base_impl) != (np == base_prop)
+
+
+def test_perturb_semantic_adds_non_numeric_neighbours():
+    """strategy='semantic' yields >0 neighbours that the literal strategy never
+    produces (operator/boundary rewrites, not integer +-1)."""
+    critic = CodeExecCritic(timeout_s=5.0)
+    c = _sum_first_n_odds_conjecture()
+    literal = _neighbour_keys(critic.perturb(c, p=999, seed=0, strategy="literal"))
+    semantic = _neighbour_keys(critic.perturb(c, p=999, seed=0, strategy="semantic"))
+    extra = semantic - literal
+    assert len(extra) > 0, "semantic produced no neighbours beyond literal"
+    # the semantic set must contain at least one operator-swap rewrite
+    swapped = [
+        impl for (impl, _prop) in semantic
+        if "range(n)" not in impl or "//" in impl or "-" in impl
+    ]
+    assert swapped
+
+
+def test_perturb_rich_is_superset_of_literal_and_semantic():
+    """strategy='rich' = literal ∪ semantic."""
+    critic = CodeExecCritic(timeout_s=5.0)
+    c = _sum_first_n_odds_conjecture()
+    literal = _neighbour_keys(critic.perturb(c, p=999, seed=0, strategy="literal"))
+    semantic = _neighbour_keys(critic.perturb(c, p=999, seed=0, strategy="semantic"))
+    rich = _neighbour_keys(critic.perturb(c, p=999, seed=0, strategy="rich"))
+    assert literal <= rich
+    assert semantic <= rich
+    assert rich == (literal | semantic)
+
+
+def test_perturb_semantic_neighbours_are_runnable_and_break_contentful():
+    """Every semantic neighbour is a real, sandbox-runnable candidate; for a
+    CONTENTFUL claim the operator/boundary edits actually break it (real
+    execution, not a heuristic) — i.e. hardness is non-degenerate."""
+    critic = CodeExecCritic(timeout_s=5.0, n_adversarial=10)
+    c = _sum_first_n_odds_conjecture()
+    neighbours = critic.perturb(c, p=20, seed=0, strategy="semantic")
+    assert neighbours, "expected semantic neighbours"
+    broke = 0
+    for n in neighbours:
+        cr = critic.check(n)
+        if not cr.valid:
+            broke += 1
+    # a genuinely contentful identity is broken by most operand/operator edits
+    assert broke > 0, "no semantic neighbour broke a contentful claim"

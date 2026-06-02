@@ -1,0 +1,20 @@
+{"name": "fibonacci", "statement": "f(n) = n-th Fibonacci number; f(n) = f(n-1) + f(n-2)"}
+{"name": "lucas", "statement": "f(n) = n-th Lucas number; f(n) = f(n-1) + f(n-2) with seeds 2,1"}
+{"name": "fib_closed", "statement": "Fibonacci closed form (Binet): f(n) = (phi^n - psi^n)/sqrt(5)"}
+{"name": "chebyshev", "statement": "Chebyshev polynomial recurrence T(n) = 2x*T(n-1) - T(n-2)"}
+{"name": "pell", "statement": "Pell numbers P(n) = 2*P(n-1) + P(n-2)"}
+{"name": "triangular", "statement": "n-th triangular number equals n*(n+1)/2"}
+{"name": "sum_squares", "statement": "sum of squares 1..n equals n(n+1)(2n+1)/6"}
+{"name": "totient", "statement": "Euler totient phi(n) counts integers in [1,n] coprime to n"}
+{"name": "divisor_count", "statement": "number of positive divisors of n (tau function)"}
+{"name": "linear_recurrence_homogeneous", "statement": "a homogeneous linear recurrence a(n)=c1*a(n-1)+c2*a(n-2) has closed form via characteristic roots"}
+{"name": "geometric", "statement": "geometric sequence a(n) = r^n grows by constant ratio r"}
+{"name": "factorial", "statement": "n factorial is the product of 1..n"}
+{"name": "catalan", "statement": "Catalan number C(n) = (2n choose n)/(n+1)"}
+{"name": "binomial", "statement": "binomial coefficient n choose k counts subsets of size k"}
+{"name": "mobius", "statement": "Mobius inversion relates a function and its divisor sum"}
+{"name": "arithmetic", "statement": "arithmetic sequence a(n) = a0 + n*d has constant difference d"}
+{"name": "popcount", "statement": "popcount of n is the number of 1 bits in its binary representation"}
+{"name": "parity", "statement": "the parity of a number is whether it is even or odd"}
+{"name": "gcd_lcm", "statement": "gcd(a,b)*lcm(a,b) = a*b"}
+{"name": "harmonic", "statement": "sum of 1/k for k in 1..n is the n-th harmonic number"}

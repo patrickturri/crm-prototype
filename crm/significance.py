@@ -77,12 +77,18 @@ class SignificanceCritic:
         breadth_target_statements: list[str] | None = None,
         breadth_target_specs: list[dict] | None = None,
         seed: int = 0,
+        perturb_strategy: str = "literal",
     ) -> None:
         self.w_novelty = w_novelty
         self.w_breadth = w_breadth
         self.w_hardness = w_hardness
         self.tau = tau
         self.perturbations = perturbations
+        # Mutation family used by CodeExecCritic.perturb for hardness (§6.1).
+        # "literal" (default) = integer +-1 only; "semantic" = operator/boundary
+        # rewrites only; "rich"/"all" = both. Configs flip this to A/B the
+        # hardness distribution (review finding #6: literal-only saturates).
+        self.perturb_strategy = perturb_strategy
         self.breadth_targets = breadth_targets
         self.embedder_name = embedder
         self.seed = seed
@@ -161,7 +167,23 @@ class SignificanceCritic:
         """
         perturb = getattr(critic, "perturb", None)
         if callable(perturb):
-            perts = perturb(conjecture, self.perturbations, self.seed)
+            # Pass the strategy only if the critic's perturb accepts it (the
+            # code-exec critic does; the Lean/arith path does not).
+            import inspect
+
+            try:
+                accepts_strategy = "strategy" in inspect.signature(perturb).parameters
+            except (TypeError, ValueError):
+                accepts_strategy = False
+            if accepts_strategy:
+                perts = perturb(
+                    conjecture,
+                    self.perturbations,
+                    self.seed,
+                    strategy=self.perturb_strategy,
+                )
+            else:
+                perts = perturb(conjecture, self.perturbations, self.seed)
             if not perts:
                 return 0.0, []
             results: list[tuple[str, bool]] = []

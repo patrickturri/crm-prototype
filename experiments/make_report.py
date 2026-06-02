@@ -186,7 +186,16 @@ def _genealogy_paragraph(g: dict) -> str:
         f"{t['mean_significance']:.2f} vs {c['mean_significance']:.2f}, survival rate "
         f"{t['survival_rate']:.2f} vs {c['survival_rate']:.2f}, and trivial rate "
         f"{t['trivial_rate']:.2f} vs {c['trivial_rate']:.2f}. Reading: {verdict}."
-        f"{analysis}"
+        f"{analysis} At this n the gap is not statistically significant (Welch "
+        f"p=0.126, Mann-Whitney p=0.134; see "
+        f"[`docs/findings/genealogy_scale.md`](findings/genealogy_scale.md)), the "
+        f"point estimate trends the wrong way, and the trivial-rate difference is a "
+        f"near-tie (Welch p=0.90) — so the H2 advantage is NOT established on the "
+        f"easy (recall) domain. The std shown is population std over seeds; with "
+        f"sample std (ddof=1) the bands are wider still. The one place genealogy "
+        f"helps is a freshly-defined sequence the model cannot recall (the sign of "
+        f"the delta flips to +1.33), but that result is also underpowered at n=3 — "
+        f"see [`docs/findings/hard_domain.md`](findings/hard_domain.md)."
     )
 
 
@@ -215,7 +224,13 @@ def _significance_paragraph(s: dict) -> str:
         f"{on:.2f}±{s['on_std']:.2f} with the critic ON versus "
         f"{off:.2f}±{s['off_std']:.2f} with it OFF. The arms differ in exactly one "
         f"variable — whether trivial conjectures are suppressed (score 0, excluded) "
-        f"or whether any valid statement counts. Reading: {verdict}."
+        f"or whether any valid statement counts. Reading: {verdict}. "
+        f"This independent oracle (`experiments/_indep_oracle.py`) shares no code "
+        f"with the significance gate (review finding #5): it uses a "
+        f"structurally-unrelated degenerate battery on a disjoint sampling "
+        f"subdomain, so the comparison is no longer tautological. Even with the "
+        f"guard ON it still flags ~{on:.0%} of survivors as guess-closeable; the "
+        f"guard reduces independently-measured triviality but does not eliminate it."
     )
 
 
@@ -243,6 +258,14 @@ def main(argv: list[str] | None = None) -> int:
         "Two apples-to-apples ablations on the **real sandboxed CodeExecCritic** "
         "(no mocked critic in any number, §3/§15). Treatment and control differ in "
         "EXACTLY one variable. Plots show **mean ± std** over seeds.\n"
+    )
+    md.append(
+        "> **Honest framing (review pass).** These ablations test **operational** "
+        "novelty against a corpus on a bounded integer test domain — "
+        "fuzz-testing, not proof. The genealogy mechanism (H2) does **not** beat "
+        "control on the easy recall domain even scaled to n=8; report this plainly. "
+        "A consolidated, number-by-number account of every follow-up experiment is "
+        "in [`docs/FINDINGS.md`](FINDINGS.md).\n"
     )
     md.append("## 9.1 Genealogy ablation (tests H2)\n")
     md.append("![Genealogy ablation](docs/assets/ablation_genealogy.png)\n")
