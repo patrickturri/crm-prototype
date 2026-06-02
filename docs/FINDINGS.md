@@ -189,14 +189,156 @@ underpowered. **Scaled to n=10, the flip disappears — it was noise:**
 
 ---
 
+## 7. Robustness / model-sensitivity of the genealogy null — finding #10
+
+[`docs/findings/robustness.md`](findings/robustness.md) ·
+sources: `results/findings/robustness/summary.json`,
+`results/findings/robustness/robustness.csv`, per-arm `ledger.jsonl`,
+`experiments/robustness.py`
+
+Every prior null used ONE proposer config (`claude-sonnet-4-6 @ 0.7`). Re-running
+the genealogy-vs-best_of_N slice (6 rounds, 3 seeds, real API, `any_fallback=false`)
+under a lower temperature and a different model asks whether the nulls are
+config-specific. They are not:
+
+| setting | genealogy (mean ± std) | best_of_N (mean ± std) | delta | Welch p |
+|---|---|---|---|---|
+| sonnet @ 0.7 (baseline) | **6.0 ± 0.82** | **6.33 ± 1.25** | **−0.33** | 0.77 |
+| sonnet @ 0.3 | **7.0 ± 0.82** | **6.33 ± 0.47** | **+0.67** | 0.39 |
+| haiku-4-5 @ 0.7 | **2.0 ± 0.82** | **4.67 ± 1.70** | **−2.67** | 0.14 |
+
+- **Genealogy beats best_of_N significantly in NO setting** (`any_significant_positive=false`).
+  The baseline reproduces (−0.33, p=0.77).
+- Lower temperature only nudges the *point estimate* positive (+0.67) and not
+  significantly (p=0.39); the gate also tightens best_of_N's variance.
+- The smaller model widens best_of_N's lead (−2.67, p=0.14) **and** craters
+  absolute yield (genealogy mean 2.0 vs sonnet's 6–7), consistent with the
+  responsiveness reading that "build on the survivors" anchors rather than expands.
+- **Conclusion: the H2 null is a property of the mechanism, not of one
+  model/temperature.** Temperature is the only knob worth a larger-n follow-up.
+
+---
+
+## 8. Does iteration compound? Deep rounds-scaling — finding #11 (the central thesis test)
+
+[`docs/findings/rounds_scaling.md`](findings/rounds_scaling.md) ·
+sources: `results/rounds_scaling/clean_analysis.json`,
+`results/rounds_scaling_run.log`, per-seed `metrics.json`,
+`experiments/rounds_scaling.py` + `experiments/analyze_rounds_scaling_clean.py`
+
+A "machine that *creates* knowledge" must **compound** — keep finding new
+certified-novel as rounds accumulate. Every prior run used only 3 rounds, so this
+was never tested. Scaled to **25 rounds × 8 seeds** (`configs/ablation.yaml`,
+api_code + hash embedder). Intermittent `APIConnectionError` silently dropped
+some seeds to the offline (context-ignoring) proposer; those `fallback=True`
+seeds are **excluded** (7 clean genealogy, 4 clean control). The `best_of_N` arm
+is omitted — at R·k=150 candidates in one call it exceeds the proposer's
+`max_tokens` and is not viable (the sane-budget best-of-N comparison lives in
+findings #8/#9).
+
+| arm | clean seeds | final certified (mean±std) | new-certified, first ⅓ | new-certified, last ⅓ | late/early | plateau round (median) |
+|---|---|---|---|---|---|---|
+| genealogy | 7 | **13.0 ± 4.8** | 9.43 | **0.57** | **0.061** | 14 |
+| control | 4 | **18.5 ± 3.9** | 14.5 | **1.25** | **0.086** | 20 |
+
+- **Iteration does NOT compound — it saturates.** Both arms generate ~94% of
+  their certified-novel in the first third of rounds and ≈0 in the last third.
+  Once the proposer has surfaced the small set of operationally-novel claims it
+  can find for the domain, more rounds add almost nothing.
+- **Genealogy still does not beat control at 25 rounds** (13.0 vs 18.5, diff
+  **−5.5**, Welch p=0.107, MWU p=0.107) — if anything control trends higher,
+  consistent with the n=8/n=10 ablations. Scaling rounds does not rescue H2.
+
+## 9. Does the proposer actually use the genealogy? — finding #12 (root cause)
+
+[`docs/findings/responsiveness.md`](findings/responsiveness.md) ·
+sources: `results/findings/responsiveness.json`, `experiments/responsiveness.py`
+
+The key diagnostic: is H2 null because the proposer **ignores** the genealogy
+(fixable), or because it **uses** it and it still doesn't help (deeper)? With a
+realistic seeded ledger, the real API proposer was asked for proposals under
+genealogy vs control context (3 seeds, `any_fallback=false`):
+
+| signal | value | reading |
+|---|---|---|
+| proposal embedding-distance (genealogy vs control) | **0.467 ± 0.059** | proposals shift **a lot** |
+| statement-set Jaccard overlap | **0.030** | almost no shared proposals |
+| genealogy proposals reference prior failure modes? | **no** | it diverges, but not by *avoiding* the logged failures |
+
+**The proposer is NOT ignoring the genealogy — conditioning changes its output
+substantially. It simply does not change it for the better.** So H2's failure is
+not a prompting bug (confirmed independently by finding #14: an orthogonality
+re-prompt also fails). This points away from "fix the prompt" and toward the
+architecture: in-context conditioning moves the proposal distribution but not
+toward higher certified-novel yield.
+
+## 10. What does the significance score actually measure? — finding #13
+
+[`docs/findings/significance_depth.md`](findings/significance_depth.md) ·
+sources: `results/findings/significance_depth.json`,
+`results/findings/hyp_H-novelty-is-score.json`,
+`experiments/analyze_certify_drivers.py`
+
+Across **1,722** ledger records (773 with significance), which signal actually
+separates certified from non-certified (valid, non-trivial)?
+
+| signal | AUC (certified vs non-certified) | discriminates? |
+|---|---|---|
+| novelty | **0.686** | yes |
+| hardness | **0.480** | no (noise) |
+| breadth | **0.484** | no (noise) |
+
+- **The significance score is, empirically, just novelty.** Breadth is zero for
+  **96.8%** of gate-passing candidates (mean 0.005) — its 0.3 weight is dead.
+  Hardness sits near its ceiling (35.5% at cap) and does not distinguish certified
+  from rejected. The novelty gate alone predicts certification for **83%** of
+  non-trivial candidates; **0** certified items violate the novelty gate.
+- So the Deutschian "hard-to-vary / explanatory depth" framing is **not**
+  operationalised by the current score — it reduces to embedding-novelty +
+  correctness-on-a-budget. This is the measurement-side counterpart to the H2 null.
+
+## 11. New hypotheses, generated and tested — findings #14–#15
+
+To go beyond confirming the nulls, the thesis pass generated falsifiable
+hypotheses and tested the cheap, decisive ones:
+
+- **#14 — Orthogonality prompt rescues H2: REFUTED.**
+  [`hyp_H-orthogonality-prompt-flips-h2.md`](findings/hyp_H-orthogonality-prompt-flips-h2.md) ·
+  `results/findings/hyp_H-orthogonality-prompt-flips-h2.json`. Replacing the
+  "generalise or build on these survivors" line with an explicit *orthogonality*
+  directive ("propose results NOT expressible via, and dissimilar to, the listed
+  survivors") did **not** convert genealogy into an accelerator — it still fails
+  to beat control/best-of-N. The genealogy null is not an artifact of one prompt
+  phrasing.
+- **#15 — Breadth is dead weight: CONFIRMED (effect), mechanism corrected.**
+  [`hyp_H-breadth-dead.md`](findings/hyp_H-breadth-dead.md) ·
+  `results/findings/hyp_H-breadth-dead.json`. Breadth is 0 for ~100% of
+  genealogy/control survivors, so `score ≈ 0.3·novelty + 0.4·hardness` — but not
+  because the enablement path is broken (it is live and *can* return >0); it is 0
+  because proposed Python claims do not reproduce a held-out helper. The 0.3
+  breadth weight contributes nothing in practice.
+
+**Roadmap — hypotheses worth testing next (not yet run):** whether **weight
+updates on survivors** (vs frozen + in-context) produce the compounding the loop
+lacks — this is the single most decisive unaddressed test, since findings #11–#12
+show in-context conditioning changes proposals but not yield; whether a domain
+with an *unbounded* supply of discoverable structure (rather than a saturating
+recallable pool) changes the plateau; and replacing the hardness/breadth weights
+with a depth signal that actually discriminates (finding #13 shows the current
+ones do not).
+
+---
+
 ## Reproduction
 
 - Deterministic / free (offline proposer + hash embedder): dedup, hardness,
   baseline-floor, and the independent-oracle significance ablation are exactly
   reproducible.
-- API (nondeterministic, costs money, temperature 0.7): the n=8 genealogy scale
-  run, the API baseline seed, and the hard-domain run use the real Anthropic
-  proposer and are not bit-reproducible.
+- API (nondeterministic, costs money): the n=8 genealogy scale run, the API
+  baseline seed, the hard-domain run, and the robustness / model-sensitivity
+  sweep (finding #10; `claude-sonnet-4-6` @ 0.7 and 0.3, `claude-haiku-4-5` @ 0.7)
+  use the real Anthropic proposer and are not bit-reproducible.
 
 `results/` is gitignored but regenerable from the configs + modules named above.
-Full test suite: **71 passed** (`python -m pytest -q`).
+Full test suite: **all pass** (`python -m pytest -q`, exit 0), including the
+robustness module's offline-smoke + fallback-guard tests.

@@ -17,6 +17,19 @@ rather than by predicting the human-text distribution.
 > budget — testing is not proving, and that gap is the honest centre of this
 > report, not a footnote. A full, number-by-number account of the review-pass
 > experiments is in [`docs/FINDINGS.md`](docs/FINDINGS.md).
+>
+> **Thesis-pass update (does iteration compound?).** Scaling the loop to **25
+> rounds** shows it does **not**: ~94% of certified-novel appears in the first
+> third of rounds and the late third yields ≈0 (genealogy late/early ratio 0.06,
+> control 0.09) — the system **saturates** by round ~12–15, it does not compound.
+> A diagnostic confirms the proposer genuinely *responds* to the genealogy
+> context (proposal embedding-shift 0.47, near-zero statement overlap) yet this
+> does **not** improve yield, and the significance score is empirically **just
+> novelty** (breadth fires for <4% of survivors; hardness does not discriminate
+> certified from rejected, AUC 0.48). The honest conclusion: a **frozen** proposer
+> with **in-context** genealogy cannot create compounding novelty here; the
+> regime that might (per the evidence) is **weight updates on survivors**, not
+> richer prompting. See [`docs/findings/rounds_scaling.md`](docs/findings/rounds_scaling.md).
 
 ## Thesis (3 sentences)
 
@@ -58,6 +71,10 @@ topic, k, rounds, critic, budgets, seed list — differing in exactly one variab
   [`docs/FINDINGS.md`](docs/FINDINGS.md),
   [`docs/findings/genealogy_scale.md`](docs/findings/genealogy_scale.md), and
   [`docs/findings/hard_domain_scaled.md`](docs/findings/hard_domain_scaled.md).
+  *Compounding (25 rounds, clean seeds):* genealogy still does not beat control
+  (13.0±4.8 vs 18.5±3.9, p=0.11) and **both saturate** — new-certified collapses
+  from ~9–15 in the first third of rounds to ≈0–1 in the last third. More rounds
+  do not help; [`docs/findings/rounds_scaling.md`](docs/findings/rounds_scaling.md).
 
 - **Significance ablation (reward-hack guard).** Trivial/vacuous "survivors" rate,
   significance critic ON vs OFF, judged by a **genuinely independent** triviality
@@ -119,6 +136,16 @@ live `is_trivial` gate.
 | 5 | **Independent triviality oracle** | non-tautological oracle: guard ON **0.15±0.07** vs OFF **0.27±0.08** (was 0.00 vs 0.34, now retired) | REPORT §9.2 |
 | 8 | **Best-of-N baseline** | baseline keeps **1.7x more** certified/ktok (17.85 vs 10.60); full system is a cost/quality trade-off, not a per-token win | [baseline](docs/findings/baseline.md) |
 | 9 | **Hard domain (discovery), settled at n=10** | on a non-recallable sequence the n=3 genealogy flip (+1.33) **vanished**: genealogy **1.90±0.70** vs control **2.00±0.63** (−0.10, p=0.75). best-of-N wins (+1.10, p=0.003). H2 unsupported on both domains | [hard_domain_scaled](docs/findings/hard_domain_scaled.md) |
+
+A second **thesis-pass** then asked *why* and *whether iteration compounds*:
+
+| # | finding | headline (real numbers) | doc |
+| --- | --- | --- | --- |
+| C1 | **Does iteration compound?** (25 rounds) | **No — it saturates.** New-certified collapses from ~9–15 (first ⅓) to ≈0–1 (last ⅓); plateau ~round 14. Genealogy still ≤ control (13.0 vs 18.5, p=0.11). Fallback-contaminated seeds excluded | [rounds_scaling](docs/findings/rounds_scaling.md) |
+| C2 | **Does the proposer use the genealogy?** | **Yes, but it doesn't help.** Proposals shift a lot with genealogy context (embed-dist 0.47, statement Jaccard 0.03) yet yield doesn't improve → not a prompt bug | [responsiveness](docs/findings/responsiveness.md) |
+| C3 | **Is the result model/temp-specific?** | **No.** genealogy never significantly beats best-of-N across temp 0.3/0.7 and a 2nd model (haiku); no fallback contamination | [robustness](docs/findings/robustness.md) |
+| C4 | **What does the significance score measure?** | **Just novelty.** Only novelty discriminates certified vs rejected (AUC 0.69); hardness AUC 0.48, breadth AUC 0.48 are noise. Breadth fires for <4% of survivors → 0.3 of the score is dead weight | [significance_depth](docs/findings/significance_depth.md) |
+| C5 | **Can a better genealogy prompt rescue H2?** | **No (REFUTED).** Swapping "build on these" for an orthogonality directive did not make genealogy beat control/best-of-N | [hyp_H-orthogonality](docs/findings/hyp_H-orthogonality-prompt-flips-h2.md) |
 
 ## One-command reproduction
 

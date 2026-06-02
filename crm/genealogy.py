@@ -134,14 +134,21 @@ def build_conditioning_context(
 
     `mode="genealogy"` (treatment): includes WHY conjectures failed and the
     surviving high-content results to build on.
+    `mode="genealogy_orthogonal"` (H-orthogonality variant): same WHY-failed
+    block, but the survivor block's directive is INVERTED — instead of "generalise
+    or build on these", it instructs the proposer to propose results NOT
+    expressible via, and dissimilar to, the listed survivors (avoid their
+    neighbourhood). Tests whether the genealogy null is an artefact of the
+    build-on framing acting as an exploration brake.
     `mode="control"`: same prompt MINUS reasons/significance/build-on guidance,
     but still lists prior statements so both conditions deduplicate equally.
 
     Phase 0 ships a faithful-but-minimal version sufficient to drive the mock
     loop. Phase 1 fleshes out the significance-aware ranking and token budgeting.
     """
-    if mode not in ("genealogy", "control"):
+    if mode not in ("genealogy", "genealogy_orthogonal", "control"):
         raise ValueError(f"unknown conditioning mode: {mode!r}")
+    genealogy_like = mode in ("genealogy", "genealogy_orthogonal")
 
     lines: list[str] = []
     lines.append(
@@ -150,7 +157,7 @@ def build_conditioning_context(
     lines.append("")
 
     prior = ledger.entries
-    if mode == "genealogy":
+    if genealogy_like:
         failed = [e for e in prior if not e.surviving]
         if failed:
             lines.append(
@@ -162,9 +169,16 @@ def build_conditioning_context(
 
         survivors = ledger.survivors()
         if survivors:
-            lines.append(
-                "Surviving, high-content results so far — generalise or build on these:"
-            )
+            if mode == "genealogy_orthogonal":
+                lines.append(
+                    "Surviving, high-content results so far — propose NEW results "
+                    "that are NOT expressible via and are DISSIMILAR to these "
+                    "(avoid their neighbourhood; do not generalise or build on them):"
+                )
+            else:
+                lines.append(
+                    "Surviving, high-content results so far — generalise or build on these:"
+                )
             for e in survivors[-12:]:
                 sc = (
                     f" (content score {e.significance.score:.2f})"
@@ -184,13 +198,20 @@ def build_conditioning_context(
     lines.append(
         f"Now propose {k} NEW conjectures about {topic} that are (a) likely TRUE,"
     )
-    if mode == "genealogy":
+    if genealogy_like:
         lines.append(
             "(b) NON-trivial / hard-to-vary (small changes to them should make them false),"
         )
-        lines.append(
-            "(c) NOT restatements of the above or of standard-library lemmas."
-        )
+        if mode == "genealogy_orthogonal":
+            lines.append(
+                "(c) NOT restatements of, derivable from, or near-duplicates of the "
+                "survivors above or of standard-library lemmas — pick a DIFFERENT "
+                "region of the topic."
+            )
+        else:
+            lines.append(
+                "(c) NOT restatements of the above or of standard-library lemmas."
+            )
     else:
         lines.append("(b) NOT restatements of the above.")
     lines.append(
