@@ -96,6 +96,23 @@ def test_dedup_parity_statements_in_both(ledger):
         assert stmt in ctrl
 
 
+def test_orthogonal_mode_inverts_build_on(ledger):
+    """genealogy_orthogonal keeps the WHY-failed block but inverts the survivor
+    directive: avoid the survivors' neighbourhood instead of building on them."""
+    orth = build_conditioning_context(ledger, "gcd", 4, mode="genealogy_orthogonal")
+    # same failure-reason block as genealogy
+    assert "WHY they failed" in orth
+    assert "counterexample" in orth
+    # survivors STILL listed (dedup parity) with their content score
+    assert "Nat.gcd n (n + 1)" in orth
+    assert "content score 0.71" in orth
+    # but the directive is the INVERSE of build-on
+    assert "build on" not in orth or "do not generalise or build on" in orth
+    assert "DISSIMILAR" in orth or "dissimilar" in orth.lower()
+    assert "generalise or build on these:" not in orth
+    assert "hard-to-vary" in orth
+
+
 def test_unknown_mode_raises(ledger):
     with pytest.raises(ValueError):
         build_conditioning_context(ledger, "gcd", 4, mode="bogus")

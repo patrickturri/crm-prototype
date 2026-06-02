@@ -298,7 +298,17 @@ class APICodeProposer(Proposer):
         try:
             import anthropic
 
-            self._client = anthropic.Anthropic(api_key=key)
+            # Bound each request so a hung socket can't stall a multi-round/
+            # multi-seed sweep indefinitely (observed: a single request blocking
+            # at 0% CPU for tens of minutes with no client timeout). On timeout
+            # the SDK retries `max_retries` times, then raises -> `propose`
+            # degrades to the offline generator, which the experiments'
+            # fallback guard then flags loudly rather than hanging silently.
+            timeout_s = float(self.config.get("request_timeout_s", 120.0))
+            max_retries = int(self.config.get("max_retries", 2))
+            self._client = anthropic.Anthropic(
+                api_key=key, timeout=timeout_s, max_retries=max_retries
+            )
         except Exception:
             self._using_fallback = True
 

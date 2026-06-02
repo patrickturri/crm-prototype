@@ -29,7 +29,12 @@ import numpy as np
 from crm.accounting import Accountant
 from crm.genealogy import Entry, Ledger, build_conditioning_context
 from crm.novelty import certify_novel
-from crm.run import _build_critic, _build_proposer, _load_jsonl_statements
+from crm.run import (
+    _build_critic,
+    _build_proposer,
+    _load_jsonl_objects,
+    _load_jsonl_statements,
+)
 from crm.significance import SignificanceCritic
 from experiments._indep_oracle import independent_trivial_rate
 
@@ -52,6 +57,11 @@ class RunResult:
     # INDEPENDENT automation oracle judges trivial/vacuous.
     indep_trivial_rate: float = 0.0
     critic: Any = None
+    # True if the (API) proposer silently degraded to the offline,
+    # context-IGNORING generator — which INVALIDATES any genealogy claim, so
+    # callers must check this and fail loudly (review hard rule).
+    using_fallback: bool = False
+    proposer_name: str = "?"
 
 
 def _build_components(cfg: dict[str, Any]):
@@ -64,6 +74,11 @@ def _build_components(cfg: dict[str, Any]):
     corpus = _load_jsonl_statements(corpus_path)
     breadth_path = cfg.get("breadth_targets_path", corpus_path)
     breadth = _load_jsonl_statements(breadth_path)
+    # Structured downstream-enablement targets (rows with a `solve`), mirroring
+    # crm.run.run_from_config. WITHOUT these the code-exec critic's real
+    # `enables` hook never fires and breadth silently collapses to 0 for the
+    # code domain (review recon: breadth=0 for all api_code scored entries).
+    breadth_specs = [o for o in _load_jsonl_objects(breadth_path) if "solve" in o]
 
     embedder = cfg.get("embedder")
     if cfg.get("offline_embedder", False):
@@ -79,6 +94,7 @@ def _build_components(cfg: dict[str, Any]):
         embedder=embedder,
         corpus_statements=corpus,
         breadth_target_statements=breadth,
+        breadth_target_specs=breadth_specs,
         seed=int(cfg.get("seed", 0)),
         perturb_strategy=cfg.get("perturb_strategy", "literal"),
     )
@@ -232,6 +248,8 @@ def run_arm(
         trivial_rate=trivial_rate,
         indep_trivial_rate=indep_trivial,
         critic=critic,
+        using_fallback=bool(getattr(proposer, "using_fallback", False)),
+        proposer_name=getattr(proposer, "name", "?"),
     )
 
 

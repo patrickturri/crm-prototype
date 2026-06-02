@@ -20,6 +20,20 @@ single source of truth for the replay viewer.
 Sanitization (§18 6.3 / 6.6): every emitted JSONL row is scanned for and
 scrubbed of anything resembling an API key, an absolute host path, or an env
 assignment. The build fails loudly if anything matches after scrubbing.
+
+ROOT <-> docs/ RELATIONSHIP (drift-control, review finding "root/docs drift").
+This script IS the generator for the duplicated Markdown: `docs/REPORT.md` and
+`docs/SURVIVORS.md` are produced HERE from the repo-root `REPORT.md` /
+`SURVIVORS.md` (the source of truth), with `docs/assets/` link prefixes
+rewritten for GitHub-Pages relative resolution (see `copy_report` /
+`copy_survivors`). So the correct workflow for any numbers/prose edit is:
+edit the ROOT copy, then run `python -m experiments.make_docs` to regenerate the
+docs/ copy — do NOT hand-edit `docs/REPORT.md` / `docs/SURVIVORS.md`.
+
+NOT generated here (hand-maintained, edit directly): `README.md` (root only),
+`docs/FINDINGS.md`, and `docs/findings/*.md`. These have no generator yet, so a
+single-sided edit to them can drift; keep that in mind until a generator covers
+them.
 """
 
 from __future__ import annotations

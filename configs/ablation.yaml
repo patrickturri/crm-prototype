@@ -40,4 +40,9 @@ embedder: hash
 offline_embedder: true
 
 corpus_path: data/code_corpus.jsonl
+# Structured downstream-enablement targets so the breadth signal can actually
+# fire on the code domain (rows carry solve/h_ref; the code-exec critic injects
+# a survivor's verified function as the helper and checks real enablement).
+# Without this the breadth weight is silently dead weight on code conjectures.
+breadth_targets_path: data/code_breadth_targets.jsonl
 results_dir: results
