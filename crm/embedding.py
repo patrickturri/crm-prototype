@@ -71,20 +71,50 @@ class STEmbedder:
         return np.asarray(emb, dtype=np.float64)
 
 
+# Process-lifetime memo of constructed embedders, keyed by the resolved backend
+# key (model name, or "hash" for the offline fallback). An Embedder instance is
+# stateless across encode() calls (the MiniLM weights and the hash table are
+# read-only), so reusing one instance for the whole process is side-effect-free
+# and turns the per-arm "Loading weights" reload (arms x seeds reloads) into a
+# single load. Caching is keyed so the hash backend and any distinct MiniLM
+# model name each get their own cached instance.
+_EMBEDDER_CACHE: dict[str, object] = {}
+
+
 def get_embedder(model_name: str | None = DEFAULT_MODEL, allow_fallback: bool = True):
     """Return the configured embedder, falling back to HashEmbedder on failure.
 
     Pass `model_name=None` (or the special string "hash") to force the offline
     deterministic embedder explicitly (used by fast unit tests).
+
+    The constructed embedder is memoised by backend key for the lifetime of the
+    process, so repeated component builds (one per ablation/rounds-scaling arm)
+    do NOT reload the SentenceTransformer weights every time.
     """
+    def _hash() -> "HashEmbedder":
+        # Lazily construct so the default is NOT built on every call (setdefault
+        # would eagerly evaluate its default arg and defeat the cache).
+        cached = _EMBEDDER_CACHE.get("hash")
+        if cached is None:
+            cached = HashEmbedder()
+            _EMBEDDER_CACHE["hash"] = cached
+        return cached
+
     if model_name in (None, "hash", "hash-fallback"):
-        return HashEmbedder()
+        return _hash()
+    cached = _EMBEDDER_CACHE.get(model_name)
+    if cached is not None:
+        return cached
     try:
-        return STEmbedder(model_name)
+        emb = STEmbedder(model_name)
     except Exception:
         if allow_fallback:
-            return HashEmbedder()
+            # The MiniLM load failed; serve (and reuse) the hash fallback so a
+            # later request for the same model does not re-attempt the load.
+            return _hash()
         raise
+    _EMBEDDER_CACHE[model_name] = emb
+    return emb
 
 
 def cosine_sim(a: np.ndarray, b: np.ndarray) -> float:

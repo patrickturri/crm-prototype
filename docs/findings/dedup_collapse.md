@@ -1,7 +1,7 @@
 # Dedup Collapse: Intra-Survivor Semantic Deduplication (Finding #7)
 
 **Run:** `code-20260531-225343`
-**Embedder:** `sentence-transformers/all-MiniLM-L6-v2` (same backend used in the run itself, per `configs/code.yaml`)
+**Embedder:** `sentence-transformers/all-MiniLM-L6-v2` for THIS re-measurement. NOTE: the original run's novelty gate used the deterministic **hash fallback**, not MiniLM (`results/code-20260531-225343/metrics.json` records `embedding_calls: 0`; `configs/code.yaml` requests MiniLM but it was unavailable at run time). So this dedup pass re-measures the survivors under MiniLM; it is NOT "the same backend used in the run itself" — that earlier phrasing was incorrect and is corrected here.
 **Delta (distance threshold):** 0.35
 **Method:** `crm.novelty.dedup_survivors` — greedy, order-preserving collapse; distance = 1 - cosine_sim; no model run, only the embedder.
 

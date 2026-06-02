@@ -39,6 +39,31 @@ report:
 survivors:
 	$(PYTHON) -m experiments.make_survivors
 
+# Rounds-scaling / compounding experiment (deep-run regime). Tests whether the
+# genealogy arm keeps producing NEW certified-novel survivors over MANY rounds
+# (compounding) or plateaus like the memoryless best-of-N baseline. Override
+# ROUNDS/SEEDS. With the api_code base config (ablation.yaml) this calls the
+# real LLM and FAILS LOUDLY if any arm silently degrades to the offline
+# generator. For a free deterministic smoke add `ROUNDS=4 SEEDS=1` and pass the
+# offline config / --allow-fallback (see experiments/rounds_scaling.py header).
+ROUNDS ?= 25
+ROUNDS_SEEDS ?= 3
+ROUNDS_CONFIG ?= configs/ablation.yaml
+rounds:
+	$(PYTHON) -m experiments.rounds_scaling --config $(ROUNDS_CONFIG) \
+		--rounds $(ROUNDS) --seeds $(ROUNDS_SEEDS)
+
+# Robustness / model-sensitivity of the genealogy null. Re-runs a SLICE of the
+# genealogy-vs-best_of_N comparison under different proposer settings
+# (sonnet@0.7, sonnet@0.3, haiku@4-5) to ask whether the known nulls are
+# model/temperature-specific or robust. Real LLM; FAILS LOUDLY on silent
+# fallback. Override ROBUST_ROUNDS/ROBUST_SEEDS.
+ROBUST_ROUNDS ?= 6
+ROBUST_SEEDS ?= 3
+robust:
+	$(PYTHON) -m experiments.robustness --rounds $(ROBUST_ROUNDS) \
+		--seeds $(ROBUST_SEEDS) --results-dir results/findings/robustness
+
 clean:
 	rm -rf results/*/ results/metrics.json
 	find . -type d -name __pycache__ -prune -exec rm -rf {} +
