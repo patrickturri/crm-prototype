@@ -75,6 +75,7 @@ topic, k, rounds, critic, budgets, seed list — differing in exactly one variab
   (13.0±4.8 vs 18.5±3.9, p=0.11) and **both saturate** — new-certified collapses
   from ~9–15 in the first third of rounds to ≈0–1 in the last third. More rounds
   do not help; [`docs/findings/rounds_scaling.md`](docs/findings/rounds_scaling.md).
+  ![Rounds-scaling: iteration saturates, it does not compound](docs/assets/rounds_scaling_compounding.png)
 
 - **Significance ablation (reward-hack guard).** Trivial/vacuous "survivors" rate,
   significance critic ON vs OFF, judged by a **genuinely independent** triviality
@@ -146,6 +147,12 @@ A second **thesis-pass** then asked *why* and *whether iteration compounds*:
 | C3 | **Is the result model/temp-specific?** | **No.** genealogy never significantly beats best-of-N across temp 0.3/0.7 and a 2nd model (haiku); no fallback contamination | [robustness](docs/findings/robustness.md) |
 | C4 | **What does the significance score measure?** | **Just novelty.** Only novelty discriminates certified vs rejected (AUC 0.69); hardness AUC 0.48, breadth AUC 0.48 are noise. Breadth fires for <4% of survivors → 0.3 of the score is dead weight | [significance_depth](docs/findings/significance_depth.md) |
 | C5 | **Can a better genealogy prompt rescue H2?** | **No (REFUTED).** Swapping "build on these" for an orthogonality directive did not make genealogy beat control/best-of-N | [hyp_H-orthogonality](docs/findings/hyp_H-orthogonality-prompt-flips-h2.md) |
+
+| | |
+|---|---|
+| ![Significance score discriminates only on novelty](docs/assets/significance_auc.png) | ![Genealogy never beats best-of-N across temperature/model](docs/assets/robustness.png) |
+
+*Left (C4): only **novelty** separates certified from rejected (AUC 0.69); hardness and breadth sit at chance (0.48). Right (C3): genealogy never significantly beats best-of-N across temperature and model. All figures are regenerated from real result files by `experiments/make_thesis_plots.py`.*
 
 ## One-command reproduction
 

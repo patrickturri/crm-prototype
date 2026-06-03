@@ -3,7 +3,7 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "crm-prototype"
+name = "critical-rationalist-machine"
 version = "0.0.1"
 description = "Critical-Rationalist Machine (CRM) prototype: bold conjecture -> severe automated criticism -> retention of survivors and reasoned genealogy of failures."
 readme = "README.md"
