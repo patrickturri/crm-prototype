@@ -40,7 +40,7 @@ A loop in which a **Proposer** (frozen LLM, pluggable API or local open-weight) 
 ## 4. Architecture & interfaces
 
 ```
-crm-prototype/
+critical-rationalist-machine/
   README.md  pyproject.toml  Makefile
   configs/            smoke.yaml  code.yaml  lean_nt.yaml
   crm/
